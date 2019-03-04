@@ -1,0 +1,3 @@
+= cloudsql-operator
+
+`cloudsql-operator` allows for managing https://cloud.google.com/sql/[Cloud SQL] instances as Kubernetes resources.
