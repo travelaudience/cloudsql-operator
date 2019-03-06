@@ -1,2 +1,6 @@
+[cluster]
+kubeconfig = "/home/travelaudience/.kube/config"
+namespace = "cloudsql-operator"
+
 [logging]
 level = "debug"

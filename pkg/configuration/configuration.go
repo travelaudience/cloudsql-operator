@@ -21,16 +21,36 @@ import (
 
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/travelaudience/cloudsql-operator/pkg/constants"
 )
+
+// Cluster holds cluster-related configuration options.
+type Cluster struct {
+	// Kubeconfig holds the path to the kubeconfig file to use.
+	Kubeconfig string `toml:"kubeconfig"`
+	// Namespace holds the namespace where cloudsql-operator is deployed.
+	Namespace string `toml:"namespace"`
+}
+
+// SetDefaults sets default values where necessary.
+func (c *Cluster) SetDefaults() {
+	if c.Namespace == "" {
+		c.Namespace = constants.DefaultCloudsqlOperatorNamespace
+	}
+}
 
 // Configuration is the root configuration object.
 type Configuration struct {
+	// Cluster holds cluster-related configuration options.
+	Cluster Cluster `toml:"cluster"`
 	// Logging holds logging-related configuration options.
 	Logging Logging `toml:"logging"`
 }
 
 // SetDefaults sets default values where necessary.
 func (c *Configuration) SetDefaults() {
+	c.Cluster.SetDefaults()
 	c.Logging.SetDefaults()
 }
 

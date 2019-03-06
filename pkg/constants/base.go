@@ -19,4 +19,6 @@ package constants
 const (
 	// ApplicationName holds the name of the application.
 	ApplicationName = "cloudsql-operator"
+	// DefaultCloudsqlOperatorNamespace is the namespace where cloudsql-operator is deployed by default.
+	DefaultCloudsqlOperatorNamespace = "cloudsql-operator"
 )
