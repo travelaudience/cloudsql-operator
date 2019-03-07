@@ -25,11 +25,13 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	extsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -37,6 +39,7 @@ import (
 
 	"github.com/travelaudience/cloudsql-operator/pkg/configuration"
 	"github.com/travelaudience/cloudsql-operator/pkg/constants"
+	"github.com/travelaudience/cloudsql-operator/pkg/crds"
 	"github.com/travelaudience/cloudsql-operator/pkg/signals"
 	"github.com/travelaudience/cloudsql-operator/pkg/version"
 )
@@ -133,7 +136,7 @@ func main() {
 					<-stopCh
 					fn()
 				}()
-				run(ctx)
+				run(ctx, kubeConfig)
 			},
 			OnStoppedLeading: func() {
 				// We've stopped leading, so we must exit immediately.
@@ -147,7 +150,16 @@ func main() {
 	})
 }
 
-func run(ctx context.Context) {
+func run(ctx context.Context, kubeConfig *rest.Config) {
+	// Create a client for the apiextensions.k8s.io/v1beta1 so that we can create or update our CRDs.
+	extsClient, err := extsclientset.NewForConfig(kubeConfig)
+	if err != nil {
+		log.Fatalf("failed to build kubernetes client: %v", err)
+	}
+	// Create or update our CRDs.
+	if err := crds.CreateOrUpdateCRDs(extsClient); err != nil {
+		log.Fatalf("failed to create or update crds: %v", err)
+	}
 	// Wait for the context to be canceled.
 	<-ctx.Done()
 	// Confirm successful shutdown.

@@ -360,6 +360,20 @@
   version = "kubernetes-1.13.4"
 
 [[projects]]
+  digest = "1:db0e48e58e92eddc9ae08e9efb3dfaa1d61e32de690fff0dae5bccf4b45ebcce"
+  name = "k8s.io/apiextensions-apiserver"
+  packages = [
+    "pkg/apis/apiextensions",
+    "pkg/apis/apiextensions/v1beta1",
+    "pkg/client/clientset/clientset",
+    "pkg/client/clientset/clientset/scheme",
+    "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
+  ]
+  pruneopts = "UT"
+  revision = "d002e88f6236312f0289d9d1deab106751718ff0"
+  version = "kubernetes-1.13.4"
+
+[[projects]]
   digest = "1:51ab4e2706ef5cde1f05a4d5e13d6ff258f5861bb4edf6143a4b4052884f86d7"
   name = "k8s.io/apimachinery"
   packages = [
@@ -412,7 +426,7 @@
   version = "kubernetes-1.13.4"
 
 [[projects]]
-  digest = "1:0dbfe141eb8b9592efa2073d016fda9919c7ebbf4d5c34cf25e2e5c37497b19d"
+  digest = "1:7ab3fe1b9b86df87d6a6eff2ec2246b651cbbed03d84cea1ce2072a5bd52c001"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -473,6 +487,7 @@
     "tools/pager",
     "tools/record",
     "tools/reference",
+    "tools/watch",
     "transport",
     "util/buffer",
     "util/cert",
@@ -518,8 +533,11 @@
     "github.com/BurntSushi/toml",
     "github.com/sirupsen/logrus",
     "k8s.io/api/core/v1",
+    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
+    "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/fields",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
@@ -541,6 +559,7 @@
     "k8s.io/client-go/tools/leaderelection",
     "k8s.io/client-go/tools/leaderelection/resourcelock",
     "k8s.io/client-go/tools/record",
+    "k8s.io/client-go/tools/watch",
     "k8s.io/client-go/util/flowcontrol",
   ]
   solver-name = "gps-cdcl"

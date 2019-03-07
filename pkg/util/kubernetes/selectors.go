@@ -14,11 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package constants
+package kubernetes
 
-const (
-	// Kind is the "kind" field used in logging statements.
-	Kind = "kind"
-	// Version is the "version" field used in logging statements.
-	Version = "version"
+import (
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/fields"
 )
+
+// ByCoordinates returns a field selector that can be used to filter Kubernetes resources based on their namespace and name.
+func ByCoordinates(namespace, name string) fields.Selector {
+	return fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name==%s,metadata.namespace==%s", name, namespace))
+}
