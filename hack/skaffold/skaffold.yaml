@@ -1,0 +1,20 @@
+apiVersion: skaffold/v1beta6
+kind: Config
+build:
+  artifacts:
+  - image: "gcr.io/<project-id>/cloudsql-operator"
+    docker:
+      dockerfile: hack/skaffold/Dockerfile
+deploy:
+  kubectl:
+    manifests:
+    - docs/deployment/00-prereqs.yaml
+    - hack/skaffold/deployment.yaml
+profiles:
+- name: gke
+  build:
+    googleCloudBuild:
+      projectId: "<project-id>"
+- name: minikube
+  build:
+    local: {}

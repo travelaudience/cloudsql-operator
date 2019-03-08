@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: cloudsql-operator
+  name: cloudsql-operator
+  namespace: cloudsql-operator
+data:
+  config.toml: |
+    [logging]
+    level = "trace"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: cloudsql-operator
+  name: cloudsql-operator
+  namespace: cloudsql-operator
+spec:
+  containers:
+  - name: cloudsql-operator
+    image: "gcr.io/<project-id>/cloudsql-operator"
+    imagePullPolicy: IfNotPresent
+    args:
+    - /cloudsql-operator
+    - --config-file
+    - /cfg/config.toml
+    volumeMounts:
+    - mountPath: /cfg/config.toml
+      subPath: config.toml
+      name: cfg
+      readOnly: true
+  volumes:
+  - name: cfg
+    configMap:
+      name: cloudsql-operator
+  serviceAccountName: cloudsql-operator

@@ -1,3 +1,6 @@
+# SHELL specifies which shell to use.
+SHELL := /bin/bash
+
 # ROOT holds the absolute path to the root of the cloudsql-operator repository.
 ROOT := $(shell git rev-parse --show-toplevel)
 
@@ -35,3 +38,13 @@ gen: dep
 		github.com/travelaudience/cloudsql-operator/pkg/apis \
 		cloudsql:v1alpha1 \
 		--go-header-file $(ROOT)/hack/header.go.txt
+
+# skaffold deploys cloudsql-operator to the Kubernetes cluster targeted by the current context.
+.PHONY: skaffold
+skaffold: MODE ?= dev
+skaffold: PROFILE ?= minikube
+skaffold:
+	@if [[ ! "$(MODE)" == "delete" ]]; then \
+		GOOS=linux GOARCH=amd64 $(MAKE) -C $(ROOT) build; \
+	fi
+	@skaffold $(MODE) --filename $(ROOT)/hack/skaffold/skaffold.yaml --profile $(PROFILE)
