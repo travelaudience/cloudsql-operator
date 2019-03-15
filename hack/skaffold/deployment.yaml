@@ -11,6 +11,22 @@ data:
     level = "trace"
 ---
 apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cloudsql-operator
+  name: cloudsql-operator
+  namespace: cloudsql-operator
+spec:
+  selector:
+    app: cloudsql-operator
+  ports:
+  - name: admission
+    port: 443
+    targetPort: 443
+  type: ClusterIP
+---
+apiVersion: v1
 kind: Pod
 metadata:
   labels:
@@ -26,6 +42,14 @@ spec:
     - /cloudsql-operator
     - --config-file
     - /cfg/config.toml
+    ports:
+    - name: admission
+      containerPort: 443
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: admission
+        scheme: HTTPS
     volumeMounts:
     - mountPath: /cfg/config.toml
       subPath: config.toml

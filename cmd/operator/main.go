@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -37,6 +38,8 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
 
+	"github.com/travelaudience/cloudsql-operator/pkg/admission"
+	cloudsqlclient "github.com/travelaudience/cloudsql-operator/pkg/client/clientset/versioned"
 	"github.com/travelaudience/cloudsql-operator/pkg/configuration"
 	"github.com/travelaudience/cloudsql-operator/pkg/constants"
 	"github.com/travelaudience/cloudsql-operator/pkg/crds"
@@ -52,6 +55,8 @@ var (
 var (
 	// config holds the configuration object.
 	config configuration.Configuration
+	// wg is a WaitGroup used to wait for several goroutines to terminate.
+	wg sync.WaitGroup
 )
 
 func init() {
@@ -91,6 +96,29 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to build kubernetes client: %v", err)
 	}
+	// Create a client for the cloudsql-operator API.
+	cloudsqlClient, err := cloudsqlclient.NewForConfig(kubeConfig)
+	if err != nil {
+		log.Fatalf("failed to build cloudsql-operator client: %v", err)
+	}
+
+	// Create an instance of the admission webhook.
+	w, err := admission.NewWebhook(kubeClient, cloudsqlClient, config)
+	if err != nil {
+		log.Fatalf("failed to create the admission webhook: %v", err)
+	}
+	// Register the admission webhook.
+	if err := w.Register(kubeClient, config); err != nil {
+		log.Fatalf("failed to register the admission webhook: %v", err)
+	}
+	// Run the admission webhook.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := w.Run(stopCh); err != nil {
+			log.Fatalf("failed to run the admission webhook: %v", err)
+		}
+	}()
 
 	// Create an event recorder so we can emit events during leader election and afterwards.
 	eb := record.NewBroadcaster()
@@ -162,6 +190,8 @@ func run(ctx context.Context, kubeConfig *rest.Config) {
 	}
 	// Wait for the context to be canceled.
 	<-ctx.Done()
+	// Wait for all goroutines to terminate.
+	wg.Wait()
 	// Confirm successful shutdown.
 	log.WithField(constants.Version, version.Version).Infof("%s is shutting down", constants.ApplicationName)
 	// There is a goroutine in the background trying to renew the leader election lock.

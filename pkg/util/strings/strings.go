@@ -14,13 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package constants
+package strings
 
-const (
-	// ApplicationName holds the name of the application.
-	ApplicationName = "cloudsql-operator"
-	// DefaultCloudsqlOperatorNamespace is the namespace where cloudsql-operator is deployed by default.
-	DefaultCloudsqlOperatorNamespace = "cloudsql-operator"
-	// DefaultWebhookBindAddress is the address to which the webhook binds by default.
-	DefaultWebhookBindAddress = "0.0.0.0:443"
-)
+// ContainsString returns a value indicating whether the provided slice contains the specified string.
+func ContainsString(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+	return false
+}

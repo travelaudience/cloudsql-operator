@@ -25,6 +25,19 @@ import (
 	"github.com/travelaudience/cloudsql-operator/pkg/constants"
 )
 
+// Admission holds admission-related configuration options.
+type Admission struct {
+	// BindAddress is the "host:port" combination used to serve the admission webhook.
+	BindAddress string `toml:"bind_address"`
+}
+
+// SetDefaults sets default values where necessary.
+func (c *Admission) SetDefaults() {
+	if c.BindAddress == "" {
+		c.BindAddress = constants.DefaultWebhookBindAddress
+	}
+}
+
 // Cluster holds cluster-related configuration options.
 type Cluster struct {
 	// Kubeconfig holds the path to the kubeconfig file to use.
@@ -42,6 +55,8 @@ func (c *Cluster) SetDefaults() {
 
 // Configuration is the root configuration object.
 type Configuration struct {
+	// Admission holds admission-related configuration options.
+	Admission Admission `toml:"admission"`
 	// Cluster holds cluster-related configuration options.
 	Cluster Cluster `toml:"cluster"`
 	// Logging holds logging-related configuration options.
@@ -50,6 +65,7 @@ type Configuration struct {
 
 // SetDefaults sets default values where necessary.
 func (c *Configuration) SetDefaults() {
+	c.Admission.SetDefaults()
 	c.Cluster.SetDefaults()
 	c.Logging.SetDefaults()
 }

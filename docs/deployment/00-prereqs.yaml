@@ -41,6 +41,30 @@ rules:
   - list
   - update
   - watch
+# Allow for reading, creating and updating MutatingWebhookConfiguration resources.
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  verbs:
+  - create
+  - get
+  - update
+# Allow for creating and reading secrets.
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - get
+# Allow for reading PostgresqlInstance resources.
+- apiGroups:
+  - cloudsql.travelaudience.com
+  resources:
+  - postgresqlinstances
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

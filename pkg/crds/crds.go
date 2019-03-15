@@ -23,25 +23,29 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/travelaudience/cloudsql-operator/pkg/apis/cloudsql/v1alpha1"
+	"github.com/travelaudience/cloudsql-operator/pkg/constants"
 )
 
 const (
-	// postgresqlInstanceKind is the value used as ".spec.names.kind" when registering the PostgresqlInstance CRD.
-	postgresqlInstanceKind = "PostgresqlInstance"
-	// postgresqlInstancePlural is the value used as ".spec.names.plural" when registering the PostgresqlInstance CRD.
-	postgresqlInstancePlural = "postgresqlinstances"
+	// PostgresqlInstanceKind is the value used as ".spec.names.kind" when registering the PostgresqlInstance CRD.
+	PostgresqlInstanceKind = "PostgresqlInstance"
+	// PostgresqlInstancePlural is the value used as ".spec.names.plural" when registering the PostgresqlInstance CRD.
+	PostgresqlInstancePlural = "postgresqlinstances"
 )
 
 var (
 	// postgresqlInstanceCRDName is the value used as ".metadata.name" when registering the PostgresqlInstance CRD.
-	postgresqlInstanceCRDName = fmt.Sprintf("%s.%s", postgresqlInstancePlural, v1alpha1.SchemeGroupVersion.Group)
+	postgresqlInstanceCRDName = fmt.Sprintf("%s.%s", PostgresqlInstancePlural, v1alpha1.SchemeGroupVersion.Group)
 )
 
 var (
 	// crds is a mapping between kinds and actual CustomResourceDefinition resources.
 	crds = map[string]*extsv1beta1.CustomResourceDefinition{
-		postgresqlInstanceKind: {
+		PostgresqlInstanceKind: {
 			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					constants.LabelAppKey: constants.ApplicationName,
+				},
 				Name: postgresqlInstanceCRDName,
 			},
 			Spec: extsv1beta1.CustomResourceDefinitionSpec{
@@ -55,8 +59,8 @@ var (
 				},
 				Scope: extsv1beta1.ClusterScoped,
 				Names: extsv1beta1.CustomResourceDefinitionNames{
-					Plural: postgresqlInstancePlural,
-					Kind:   postgresqlInstanceKind,
+					Plural: PostgresqlInstancePlural,
+					Kind:   PostgresqlInstanceKind,
 				},
 				Subresources: &extsv1beta1.CustomResourceSubresources{
 					Status: &extsv1beta1.CustomResourceSubresourceStatus{},

@@ -17,10 +17,13 @@ limitations under the License.
 package constants
 
 const (
-	// ApplicationName holds the name of the application.
-	ApplicationName = "cloudsql-operator"
-	// DefaultCloudsqlOperatorNamespace is the namespace where cloudsql-operator is deployed by default.
-	DefaultCloudsqlOperatorNamespace = "cloudsql-operator"
-	// DefaultWebhookBindAddress is the address to which the webhook binds by default.
-	DefaultWebhookBindAddress = "0.0.0.0:443"
+	// annotationKeyPrefix is the prefix used in all annotations supported by cloudsql-operator.
+	annotationKeyPrefix = "cloudsql.travelaudience.com/"
+)
+
+const (
+	// AllowDeletionAnnotationKey is the key of the annotation that specifies whether deletion of a given resource is allowed.
+	AllowDeletionAnnotationKey = annotationKeyPrefix + "allow-deletion"
+	// AllowDeletionAnnotationValue is the value that the AllowDeletionAnnotationKey annotation must have so that deletion of a given resource is allowed.
+	AllowDeletionAnnotationValue = "true"
 )

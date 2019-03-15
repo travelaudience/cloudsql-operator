@@ -17,10 +17,6 @@ limitations under the License.
 package constants
 
 const (
-	// ApplicationName holds the name of the application.
-	ApplicationName = "cloudsql-operator"
-	// DefaultCloudsqlOperatorNamespace is the namespace where cloudsql-operator is deployed by default.
-	DefaultCloudsqlOperatorNamespace = "cloudsql-operator"
-	// DefaultWebhookBindAddress is the address to which the webhook binds by default.
-	DefaultWebhookBindAddress = "0.0.0.0:443"
+	// LabelAppKey is the key of the "app" label set on all resources created by cloudsql-operator.
+	LabelAppKey = "app"
 )
