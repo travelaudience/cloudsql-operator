@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The cloudsql-operator Authors.
+Copyright 2019 The cloudsql-postgres-operator Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,6 @@ limitations under the License.
 package cloudsql
 
 const (
-	// GroupName is the name of cloudsql-operator's API group.
+	// GroupName is the name of cloudsql-postgres-operator's API group.
 	GroupName = "cloudsql.travelaudience.com"
 )

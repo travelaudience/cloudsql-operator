@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The cloudsql-operator Authors.
+Copyright 2019 The cloudsql-postgres-operator Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,20 +31,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/cert"
 
-	"github.com/travelaudience/cloudsql-operator/pkg/constants"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
 )
 
 const (
 	// tlsSecretName is the name of the secret that contains the TLS material used to register and serve the webhook.
-	tlsSecretName = "cloudsql-operator-tls"
+	tlsSecretName = "cloudsql-postgres-operator-tls"
 )
 
 // ensureTLSSecret generates a self-signed certificate and a private key to be used for registering and serving the webhook.
-// It then creates a secret containing them so they can be used by all running instances of cloudsql-operator.
+// It then creates a secret containing them so they can be used by all running instances of cloudsql-postgres-operator.
 // In case such secret already exists, it is read and returned instead.
 func (w *Webhook) ensureTLSSecret() (*corev1.Secret, error) {
 	// Generate a self-signed certificate valid for "<service-name>.<namespace>.svc".
-	svc := fmt.Sprintf("%s.%s.svc", cloudsqlOperatorServiceName, w.namespace)
+	svc := fmt.Sprintf("%s.%s.svc", cloudsqlPostgresOperatorServiceName, w.namespace)
 	now := time.Now()
 	crt := x509.Certificate{
 		Subject: pkix.Name{

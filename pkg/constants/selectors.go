@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The cloudsql-operator Authors.
+Copyright 2019 The cloudsql-postgres-operator Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,6 @@ limitations under the License.
 package constants
 
 const (
-	// LabelAppKey is the key of the "app" label set on all resources created by cloudsql-operator.
+	// LabelAppKey is the key of the "app" label set on all resources created by cloudsql-postgres-operator.
 	LabelAppKey = "app"
 )

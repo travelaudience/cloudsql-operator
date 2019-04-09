@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The cloudsql-operator Authors.
+Copyright 2019 The cloudsql-postgres-operator Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import (
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/travelaudience/cloudsql-operator/pkg/constants"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
 )
 
 // Admission holds admission-related configuration options.
@@ -42,14 +42,14 @@ func (c *Admission) SetDefaults() {
 type Cluster struct {
 	// Kubeconfig holds the path to the kubeconfig file to use.
 	Kubeconfig string `toml:"kubeconfig"`
-	// Namespace holds the namespace where cloudsql-operator is deployed.
+	// Namespace holds the namespace where cloudsql-postgres-operator is deployed.
 	Namespace string `toml:"namespace"`
 }
 
 // SetDefaults sets default values where necessary.
 func (c *Cluster) SetDefaults() {
 	if c.Namespace == "" {
-		c.Namespace = constants.DefaultCloudsqlOperatorNamespace
+		c.Namespace = constants.DefaultCloudsqlPostgresOperatorNamespace
 	}
 }
 

@@ -1,21 +1,21 @@
 # SHELL specifies which shell to use.
 SHELL := /bin/bash
 
-# ROOT holds the absolute path to the root of the cloudsql-operator repository.
+# ROOT holds the absolute path to the root of the cloudsql-postgres-operator repository.
 ROOT := $(shell git rev-parse --show-toplevel)
 
-# VERSION holds the version of cloudsql-operator being built.
+# VERSION holds the version of cloudsql-postgres-operator being built.
 VERSION ?= $(shell git describe --always --dirty=-dev)
 
-# build builds the cloudsql-operator binary for the specified architecture (defaults to "amd64") and operating system (defaults to "linux").
+# build builds the cloudsql-postgres-operator binary for the specified architecture (defaults to "amd64") and operating system (defaults to "linux").
 .PHONY: build
 build: gen
 build: GOARCH ?= amd64
 build: GOOS ?= linux
 build:
 	@GOARCH=$(GOARCH) GOOS=$(GOOS) go build \
-		-ldflags="-s -w -X github.com/travelaudience/cloudsql-operator/pkg/version.Version=$(VERSION)" \
-		-o $(ROOT)/build/cloudsql-operator \
+		-ldflags="-s -w -X github.com/travelaudience/cloudsql-postgres-operator/pkg/version.Version=$(VERSION)" \
+		-o $(ROOT)/build/cloudsql-postgres-operator \
 		-v \
 		$(ROOT)/cmd/operator/main.go
 
@@ -34,12 +34,12 @@ dep:
 .PHONY: gen
 gen: dep
 	@$(GOPATH)/src/k8s.io/code-generator/generate-groups.sh "deepcopy,client,informer,lister" \
-		github.com/travelaudience/cloudsql-operator/pkg/client \
-		github.com/travelaudience/cloudsql-operator/pkg/apis \
+		github.com/travelaudience/cloudsql-postgres-operator/pkg/client \
+		github.com/travelaudience/cloudsql-postgres-operator/pkg/apis \
 		cloudsql:v1alpha1 \
 		--go-header-file $(ROOT)/hack/header.go.txt
 
-# skaffold deploys cloudsql-operator to the Kubernetes cluster targeted by the current context.
+# skaffold deploys cloudsql-postgres-operator to the Kubernetes cluster targeted by the current context.
 .PHONY: skaffold
 skaffold: MODE ?= dev
 skaffold: PROFILE ?= minikube

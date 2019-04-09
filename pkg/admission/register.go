@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The cloudsql-operator Authors.
+Copyright 2019 The cloudsql-postgres-operator Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,17 +28,17 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/cert"
 
-	"github.com/travelaudience/cloudsql-operator/pkg/apis/cloudsql/v1alpha1"
-	"github.com/travelaudience/cloudsql-operator/pkg/configuration"
-	"github.com/travelaudience/cloudsql-operator/pkg/constants"
-	"github.com/travelaudience/cloudsql-operator/pkg/crds"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/configuration"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/crds"
 )
 
 const (
-	// cloudsqlOperatorServiceName is the name of the service used to back the admission webhook.
-	cloudsqlOperatorServiceName = "cloudsql-operator"
+	// cloudsqlPostgresOperatorServiceName is the name of the service used to back the admission webhook.
+	cloudsqlPostgresOperatorServiceName = "cloudsql-postgres-operator"
 	// mutatingWebhookConfigurationResourceName is the name to use when creating the MutatingWebhookConfiguration resource.
-	mutatingWebhookConfigurationResourceName = "cloudsql-operator"
+	mutatingWebhookConfigurationResourceName = "cloudsql-postgres-operator"
 	// webhookName is the name of the admission webhook itself.
 	webhookName = "webhook.cloudsql.travelaudience.com"
 )
@@ -138,7 +138,7 @@ func (w *Webhook) buildMutatingWehbookConfigurationObject() *admissionregistrati
 				},
 				ClientConfig: admissionregistrationv1beta1.WebhookClientConfig{
 					Service: &admissionregistrationv1beta1.ServiceReference{
-						Name:      cloudsqlOperatorServiceName,
+						Name:      cloudsqlPostgresOperatorServiceName,
 						Namespace: w.namespace,
 						Path:      &admissionPath,
 					},

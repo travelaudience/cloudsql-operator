@@ -2,7 +2,7 @@ apiVersion: skaffold/v1beta6
 kind: Config
 build:
   artifacts:
-  - image: "gcr.io/<project-id>/cloudsql-operator"
+  - image: "gcr.io/<project-id>/cloudsql-postgres-operator"
     docker:
       dockerfile: hack/skaffold/Dockerfile
 deploy:

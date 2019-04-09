@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The cloudsql-operator Authors.
+Copyright 2019 The cloudsql-postgres-operator Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ limitations under the License.
 package constants
 
 const (
-	// annotationKeyPrefix is the prefix used in all annotations supported by cloudsql-operator.
+	// annotationKeyPrefix is the prefix used in all annotations supported by cloudsql-postgres-operator.
 	annotationKeyPrefix = "cloudsql.travelaudience.com/"
 )
 

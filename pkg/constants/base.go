@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The cloudsql-operator Authors.
+Copyright 2019 The cloudsql-postgres-operator Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ package constants
 
 const (
 	// ApplicationName holds the name of the application.
-	ApplicationName = "cloudsql-operator"
-	// DefaultCloudsqlOperatorNamespace is the namespace where cloudsql-operator is deployed by default.
-	DefaultCloudsqlOperatorNamespace = "cloudsql-operator"
+	ApplicationName = "cloudsql-postgres-operator"
+	// DefaultCloudsqlPostgresOperatorNamespace is the namespace where cloudsql-postgres-operator is deployed by default.
+	DefaultCloudsqlPostgresOperatorNamespace = "cloudsql-postgres-operator"
 	// DefaultWebhookBindAddress is the address to which the webhook binds by default.
 	DefaultWebhookBindAddress = "0.0.0.0:443"
 )
