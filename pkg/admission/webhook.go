@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The cloudsql-operator Authors.
+Copyright 2019 The cloudsql-postgres-operator Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,10 +34,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/travelaudience/cloudsql-operator/pkg/apis/cloudsql/v1alpha1"
-	cloudsqlclient "github.com/travelaudience/cloudsql-operator/pkg/client/clientset/versioned"
-	"github.com/travelaudience/cloudsql-operator/pkg/configuration"
-	"github.com/travelaudience/cloudsql-operator/pkg/crds"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
+	cloudsqlclient "github.com/travelaudience/cloudsql-postgres-operator/pkg/client/clientset/versioned"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/configuration"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/crds"
 )
 
 const (
@@ -68,13 +68,13 @@ var (
 type Webhook struct {
 	// bindAddress is the bind address to use for the server.
 	bindAddress string
-	// cloudsqlClient is a client to the cloudsql-operator API.
+	// cloudsqlClient is a client to the cloudsql-postgres-operator API.
 	cloudsqlClient cloudsqlclient.Interface
 	// codecs is the codec factory to use to serialize/deserialize resources.
 	codecs serializer.CodecFactory
 	// kubeClient is the Kubernetes client to use.
 	kubeClient kubernetes.Interface
-	// namespace is the namespace where cloudsql-operator is deployed.
+	// namespace is the namespace where cloudsql-postgres-operator is deployed.
 	namespace string
 	// tlsCertificate is the TLS certificate (and private key) used to register and serve the webhook.
 	tlsCertificate tls.Certificate

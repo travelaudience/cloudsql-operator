@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The cloudsql-operator Authors.
+Copyright 2019 The cloudsql-postgres-operator Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,8 +32,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/watch"
 
-	"github.com/travelaudience/cloudsql-operator/pkg/constants"
-	kubernetesutil "github.com/travelaudience/cloudsql-operator/pkg/util/kubernetes"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
+	kubernetesutil "github.com/travelaudience/cloudsql-postgres-operator/pkg/util/kubernetes"
 )
 
 const (

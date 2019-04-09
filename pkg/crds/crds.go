@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The cloudsql-operator Authors.
+Copyright 2019 The cloudsql-postgres-operator Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ import (
 	extsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/travelaudience/cloudsql-operator/pkg/apis/cloudsql/v1alpha1"
-	"github.com/travelaudience/cloudsql-operator/pkg/constants"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
 )
 
 const (

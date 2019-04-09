@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The cloudsql-operator Authors.
+Copyright 2019 The cloudsql-postgres-operator Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,13 +38,13 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
 
-	"github.com/travelaudience/cloudsql-operator/pkg/admission"
-	cloudsqlclient "github.com/travelaudience/cloudsql-operator/pkg/client/clientset/versioned"
-	"github.com/travelaudience/cloudsql-operator/pkg/configuration"
-	"github.com/travelaudience/cloudsql-operator/pkg/constants"
-	"github.com/travelaudience/cloudsql-operator/pkg/crds"
-	"github.com/travelaudience/cloudsql-operator/pkg/signals"
-	"github.com/travelaudience/cloudsql-operator/pkg/version"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/admission"
+	cloudsqlclient "github.com/travelaudience/cloudsql-postgres-operator/pkg/client/clientset/versioned"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/configuration"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/crds"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/signals"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/version"
 )
 
 var (
@@ -96,10 +96,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to build kubernetes client: %v", err)
 	}
-	// Create a client for the cloudsql-operator API.
+	// Create a client for the cloudsql-postgres-operator API.
 	cloudsqlClient, err := cloudsqlclient.NewForConfig(kubeConfig)
 	if err != nil {
-		log.Fatalf("failed to build cloudsql-operator client: %v", err)
+		log.Fatalf("failed to build cloudsql-postgres-operator client: %v", err)
 	}
 
 	// Create an instance of the admission webhook.
