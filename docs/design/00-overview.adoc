@@ -265,8 +265,8 @@ a|
 | `string`
 a|
 * **Default:** `db-custom-1-3840` (meaning 1 vCPU and 3.75GB RAM).
-| Must be one of `db-f1-micro` or `db-g1-small`, or follow the format `db-custom-<vCPUs>-<RAM>`.
-| The values of `<vCPUs>` and `<RAM>` must be chosen according to https://cloud.google.com/sql/docs/postgres/create-instance[this set of rules].
+* Must be one of `db-f1-micro` or `db-g1-small`, or follow the format `db-custom-<vCPUs>-<RAM>`.
+* The values of `<vCPUs>` and `<RAM>` must be chosen according to https://cloud.google.com/sql/docs/postgres/create-instance[this set of rules].
 
 4+| **Version**
 

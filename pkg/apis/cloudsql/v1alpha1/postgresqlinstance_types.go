@@ -24,23 +24,23 @@ import (
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// PostgresqlInstance represents a Cloud SQL for PostgreSQL instance.
+// PostgresqlInstance represents a CSQLP instance.
 type PostgresqlInstance struct {
 	// Standard type metadata.
 	metav1.TypeMeta `json:",inline"`
 	// Standard object metadata.
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// Spec represents the specification of the Cloud SQL for PostgreSQL instance.
+	// Spec represents the specification of the CSQLP instance.
 	Spec PostgresqlInstanceSpec `json:"spec"`
-	// Status represents the status of the Cloud SQL for PostgreSQL instance.
+	// Status represents the status of the CSQLP instance.
 	Status PostgresqlInstanceStatus `json:"status"`
 }
 
-// PostgresqlInstanceSpec represents the specification of a Cloud SQL for PostgreSQL instance.
+// PostgresqlInstanceSpec represents the specification of a CSQLP instance.
 type PostgresqlInstanceSpec struct {
 }
 
-// PostgresqlInstanceStatus represents the status of a Cloud SQL for PostgreSQL instance.
+// PostgresqlInstanceStatus represents the status of a CSQLP instance.
 type PostgresqlInstanceStatus struct {
 }
 
