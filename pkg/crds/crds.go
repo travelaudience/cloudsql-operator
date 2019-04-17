@@ -50,6 +50,14 @@ var (
 			},
 			Spec: extsv1beta1.CustomResourceDefinitionSpec{
 				Group: v1alpha1.SchemeGroupVersion.Group,
+				Names: extsv1beta1.CustomResourceDefinitionNames{
+					Plural: PostgresqlInstancePlural,
+					Kind:   PostgresqlInstanceKind,
+				},
+				Scope: extsv1beta1.ClusterScoped,
+				Subresources: &extsv1beta1.CustomResourceSubresources{
+					Status: &extsv1beta1.CustomResourceSubresourceStatus{},
+				},
 				Versions: []extsv1beta1.CustomResourceDefinitionVersion{
 					{
 						Name:    v1alpha1.SchemeGroupVersion.Version,
@@ -57,13 +65,25 @@ var (
 						Storage: true,
 					},
 				},
-				Scope: extsv1beta1.ClusterScoped,
-				Names: extsv1beta1.CustomResourceDefinitionNames{
-					Plural: PostgresqlInstancePlural,
-					Kind:   PostgresqlInstanceKind,
-				},
-				Subresources: &extsv1beta1.CustomResourceSubresources{
-					Status: &extsv1beta1.CustomResourceSubresourceStatus{},
+				AdditionalPrinterColumns: []extsv1beta1.CustomResourceColumnDefinition{
+					{
+						Name:        "Instance name",
+						Type:        "string",
+						Description: "The name of the Cloud SQL for PostgreSQL instance.",
+						JSONPath:    ".spec.name",
+					},
+					{
+						Name:        "Instance version",
+						Type:        "string",
+						Description: "The version of the Cloud SQL for PostgreSQL instance.",
+						JSONPath:    ".spec.version",
+					},
+					{
+						Name:        "Age",
+						Type:        "date",
+						Description: "Time elapsed since the resource was created.",
+						JSONPath:    ".metadata.creationTimestamp",
+					},
 				},
 			},
 		},

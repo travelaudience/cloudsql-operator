@@ -22,6 +22,10 @@
   name = "k8s.io/client-go"
   version = "kubernetes-1.13.4"
 
+[[override]]
+  name = "gopkg.in/fsnotify.v1"
+  source = "gopkg.in/fsnotify/fsnotify.v1"
+
 [prune]
   go-tests = true
   unused-packages = true
