@@ -35,11 +35,11 @@ import (
 )
 
 const (
-	// tlsSecretName is the name of the secret that contains the TLS material used to register and serve the webhook.
+	// tlsSecretName is the name of the secret that contains the TLS material used to register and serve the admission webhook.
 	tlsSecretName = "cloudsql-postgres-operator-tls"
 )
 
-// ensureTLSSecret generates a self-signed certificate and a private key to be used for registering and serving the webhook.
+// ensureTLSSecret generates a self-signed certificate and a private key to be used for registering and serving the admission webhook.
 // It then creates a secret containing them so they can be used by all running instances of cloudsql-postgres-operator.
 // In case such secret already exists, it is read and returned instead.
 func (w *Webhook) ensureTLSSecret() (*corev1.Secret, error) {
@@ -110,5 +110,5 @@ func (w *Webhook) ensureTLSSecret() (*corev1.Secret, error) {
 		return w.kubeClient.CoreV1().Secrets(w.namespace).Get(tlsSecretName, metav1.GetOptions{})
 	}
 	// The secret doesn't exist, but we couldn't create it and hence should fail.
-	return nil, fmt.Errorf("failed to create the webhook's tls secret: %v", err)
+	return nil, fmt.Errorf("failed to create the admission webhook's tls secret: %v", err)
 }

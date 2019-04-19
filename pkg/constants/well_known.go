@@ -19,4 +19,8 @@ package constants
 const (
 	// Any represents an arbitrary choice of a value.
 	Any = "Any"
+	// False represents the "false" boolean value.
+	False = "false"
+	// True represents the "true" boolean value.
+	True = "true"
 )

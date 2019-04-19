@@ -67,12 +67,8 @@ func main() {
 	// Parse the provided command-line flags.
 	flag.Parse()
 
-	// Parse the provided configuration file or use a default configuration.
-	if configFile != "" {
-		config = configuration.MustNewConfigurationFromFile(configFile)
-	} else {
-		config = configuration.NewDefaultConfiguration()
-	}
+	// Parse the provided configuration file.
+	config = configuration.MustNewConfigurationFromFile(configFile)
 
 	// Enable logging at the requested level.
 	if v, err := log.ParseLevel(config.Logging.Level); err != nil {

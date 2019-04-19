@@ -48,7 +48,7 @@ var (
 	failurePolicy = admissionregistrationv1beta1.Fail
 )
 
-// Register registers the webhook by making sure a MutatingWebhookConfiguration resource with the desired configuration exists.
+// Register registers the admission webhook by making sure a MutatingWebhookConfiguration resource with the desired configuration exists.
 func (w *Webhook) Register(kubeClient kubernetes.Interface, cfg configuration.Configuration) error {
 	// Make sure the secret containing the required TLS material exists, creating it if necessary.
 	sec, err := w.ensureTLSSecret()
@@ -60,24 +60,24 @@ func (w *Webhook) Register(kubeClient kubernetes.Interface, cfg configuration.Co
 	if err != nil {
 		return err
 	}
-	// Store the TLS material so it can be used for serving the webhook later on.
+	// Store the TLS material so it can be used for serving the admission webhook later on.
 	w.tlsCertificate = crt
 
-	// Create the webhook configuration object containing the desired configuration.
-	desiredCfg := w.buildMutatingWehbookConfigurationObject()
+	// Create the admission webhook configuration object containing the desired configuration.
+	desiredCfg := w.buildMutatingWebhookConfigurationObject()
 
-	// Attempt to register the webhook.
+	// Attempt to register the admission webhook.
 	_, err = kubeClient.AdmissionregistrationV1beta1().MutatingWebhookConfigurations().Create(desiredCfg)
 	if err == nil {
 		// Registration was successful.
 		return nil
 	}
 	if !errors.IsAlreadyExists(err) {
-		// The webhook is not registered yet but we've got an unexpected error while registering it.
+		// The admission webhook is not registered yet but we've got an unexpected error while registering it.
 		return err
 	}
 
-	// At this point the webhook is already registered but the spec of the corresponding MutatingWebhookConfiguration resource may differ.
+	// At this point the admission webhook is already registered but the spec of the corresponding MutatingWebhookConfiguration resource may differ.
 
 	// Read the latest version of the MutatingWebhookConfiguration resource and check whether the specs match.
 	currentCfg, err := kubeClient.AdmissionregistrationV1beta1().MutatingWebhookConfigurations().Get(mutatingWebhookConfigurationResourceName, metav1.GetOptions{})
@@ -98,8 +98,8 @@ func (w *Webhook) Register(kubeClient kubernetes.Interface, cfg configuration.Co
 	return nil
 }
 
-// buildMutatingWebhookConfigurationObject builds the MutatingWebhookConfiguration object used to register the webhook.
-func (w *Webhook) buildMutatingWehbookConfigurationObject() *admissionregistrationv1beta1.MutatingWebhookConfiguration {
+// buildMutatingWebhookConfigurationObject builds the MutatingWebhookConfiguration object used to register the admission webhook.
+func (w *Webhook) buildMutatingWebhookConfigurationObject() *admissionregistrationv1beta1.MutatingWebhookConfiguration {
 	// PEM-encode the TLS certificate so we can use it as the value of ".webhooks[*].clientConfig.caBundle".
 	caBundle := pem.EncodeToMemory(&pem.Block{
 		Type:  cert.CertificateBlockType,

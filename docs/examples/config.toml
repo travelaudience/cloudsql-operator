@@ -7,3 +7,6 @@ namespace = "cloudsql-postgres-operator"
 
 [logging]
 level = "debug"
+
+[project]
+project_id = "cloudsql-postgres-operator-123456"

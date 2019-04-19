@@ -21,6 +21,6 @@ const (
 	ApplicationName = "cloudsql-postgres-operator"
 	// DefaultCloudsqlPostgresOperatorNamespace is the namespace where cloudsql-postgres-operator is deployed by default.
 	DefaultCloudsqlPostgresOperatorNamespace = "cloudsql-postgres-operator"
-	// DefaultWebhookBindAddress is the address to which the webhook binds by default.
+	// DefaultWebhookBindAddress is the address to which the admission webhook binds by default.
 	DefaultWebhookBindAddress = "0.0.0.0:443"
 )

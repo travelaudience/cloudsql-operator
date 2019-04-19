@@ -24,6 +24,4 @@ const (
 const (
 	// AllowDeletionAnnotationKey is the key of the annotation that specifies whether deletion of a given resource is allowed.
 	AllowDeletionAnnotationKey = annotationKeyPrefix + "allow-deletion"
-	// AllowDeletionAnnotationValue is the value that the AllowDeletionAnnotationKey annotation must have so that deletion of a given resource is allowed.
-	AllowDeletionAnnotationValue = "true"
 )

@@ -76,7 +76,9 @@ type Webhook struct {
 	kubeClient kubernetes.Interface
 	// namespace is the namespace where cloudsql-postgres-operator is deployed.
 	namespace string
-	// tlsCertificate is the TLS certificate (and private key) used to register and serve the webhook.
+	// projectID is the ID of the Google Cloud Project in which cloudsql-postgres-operator is managing Cloud SQL instances.
+	projectID string
+	// tlsCertificate is the TLS certificate (and private key) used to register and serve the admission webhook.
 	tlsCertificate tls.Certificate
 }
 
@@ -91,6 +93,7 @@ func NewWebhook(kubeClient kubernetes.Interface, cloudsqlClient cloudsqlclient.I
 		codecs:         serializer.NewCodecFactory(scheme),
 		kubeClient:     kubeClient,
 		namespace:      config.Cluster.Namespace,
+		projectID:      config.Project.ProjectID,
 	}, nil
 }
 

@@ -31,10 +31,10 @@ type Admission struct {
 	BindAddress string `toml:"bind_address"`
 }
 
-// SetDefaults sets default values where necessary.
-func (c *Admission) SetDefaults() {
-	if c.BindAddress == "" {
-		c.BindAddress = constants.DefaultWebhookBindAddress
+// setDefaults sets default values where necessary.
+func (a *Admission) setDefaults() {
+	if a.BindAddress == "" {
+		a.BindAddress = constants.DefaultWebhookBindAddress
 	}
 }
 
@@ -46,8 +46,8 @@ type Cluster struct {
 	Namespace string `toml:"namespace"`
 }
 
-// SetDefaults sets default values where necessary.
-func (c *Cluster) SetDefaults() {
+// setDefaults sets default values where necessary.
+func (c *Cluster) setDefaults() {
 	if c.Namespace == "" {
 		c.Namespace = constants.DefaultCloudsqlPostgresOperatorNamespace
 	}
@@ -61,13 +61,16 @@ type Configuration struct {
 	Cluster Cluster `toml:"cluster"`
 	// Logging holds logging-related configuration options.
 	Logging Logging `toml:"logging"`
+	// Project holds project-related configuration options.
+	Project Project `toml:"project"`
 }
 
 // SetDefaults sets default values where necessary.
-func (c *Configuration) SetDefaults() {
-	c.Admission.SetDefaults()
-	c.Cluster.SetDefaults()
-	c.Logging.SetDefaults()
+func (c *Configuration) setDefaults() {
+	c.Admission.setDefaults()
+	c.Cluster.setDefaults()
+	c.Logging.setDefaults()
+	c.Project.setDefaults()
 }
 
 // Logging holds logging-related configuration options.
@@ -76,22 +79,29 @@ type Logging struct {
 	Level string `toml:"level"`
 }
 
-// SetDefaults sets default values where necessary.
-func (l *Logging) SetDefaults() {
+// setDefaults sets default values where necessary.
+func (l *Logging) setDefaults() {
 	if l.Level == "" {
 		l.Level = log.InfoLevel.String()
 	}
 }
 
-// NewDefaultConfiguration returns a new Configuration object with default values.
-func NewDefaultConfiguration() Configuration {
-	c := Configuration{}
-	c.SetDefaults()
-	return c
+// Project holds project-related configuration options.
+type Project struct {
+	// ProjectID holds the name of the Google Cloud Platform project where cloudsql-postgres-operator is managing Cloud SQL instances.
+	ProjectID string `toml:"project_id"`
+}
+
+// setDefaults sets default values where necessary.
+func (p *Project) setDefaults() {
+	// Nothing to do.
 }
 
 // MustNewConfigurationFromFile attempts to parse the specified configuration file, exiting the application if it cannot be parsed.
 func MustNewConfigurationFromFile(path string) Configuration {
+	if path == "" {
+		log.Fatalf("the path to the configuration file must not be empty")
+	}
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Fatalf("failed to read the configuration file: %v", err)
@@ -100,6 +110,6 @@ func MustNewConfigurationFromFile(path string) Configuration {
 	if err := toml.Unmarshal(b, &r); err != nil {
 		log.Fatalf("failed to read the configuration file: %v", err)
 	}
-	r.SetDefaults()
+	r.setDefaults()
 	return r
 }
