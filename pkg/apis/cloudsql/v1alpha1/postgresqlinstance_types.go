@@ -123,6 +123,9 @@ type PostgresqlInstanceSpec struct {
 	// Networking allows for customizing the networking aspects of the CSQLP instance.
 	// +optional
 	Networking *PostgresqlInstanceSpecNetworking `json:"networking"`
+	// Paused indicates whether reconciliation of the CSQLP instance is paused.
+	// Meant only to facilitate end-to-end testing.
+	Paused bool `json:"paused,omitempty"`
 	// Resources allows for customizing the resource requests for the CSQLP instance.
 	// +optional
 	Resources *PostgresqlInstanceSpecResources `json:"resources"`

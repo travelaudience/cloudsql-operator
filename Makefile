@@ -48,3 +48,20 @@ skaffold:
 		GOOS=linux GOARCH=amd64 $(MAKE) -C $(ROOT) build; \
 	fi
 	@skaffold $(MODE) --filename $(ROOT)/hack/skaffold/skaffold.yaml --profile $(PROFILE)
+
+# test.e2e runs the end-to-end test suite.
+.PHONY: test.e2e
+test.e2e: FOCUS ?= .*
+test.e2e: KUBECONFIG ?= $(HOME)/.kube/config
+test.e2e: LOG_LEVEL ?= info
+test.e2e: PROJECT_ID ?= cloudsql-postgres-operator
+test.e2e: TIMEOUT ?= 1800s
+test.e2e:
+	@go test -tags e2e $(ROOT)/test/e2e \
+		-ginkgo.focus="$(FOCUS)" \
+		-ginkgo.v \
+		-test.timeout="$(TIMEOUT)" \
+		-test.v \
+		-kubeconfig="$(KUBECONFIG)" \
+		-log-level="$(LOG_LEVEL)" \
+		-project-id="$(PROJECT_ID)"
