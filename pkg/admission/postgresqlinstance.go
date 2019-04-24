@@ -23,6 +23,7 @@ import (
 
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
+	googleutil "github.com/travelaudience/cloudsql-postgres-operator/pkg/util/google"
 )
 
 const (
@@ -277,6 +278,19 @@ func (w *Webhook) validatePostgresqlInstanceSpecName(mutatedObj, previousObj *v1
 	// Make sure that ".spec.name" does not exceed the maximum length.
 	if len(mutatedObj.Spec.Name)+len(w.projectID) > postgresqlInstanceSpecNameProjectIDMaxLength {
 		return fmt.Errorf("the name of the instance must not exceed %d characters (got %q)", postgresqlInstanceSpecNameProjectIDMaxLength-len(w.projectID), mutatedObj.Spec.Name)
+	}
+	// If the current request is a CREATE request, make sure that ".spec.name" does not clash with the name of a pre-existing CSQLP instance.
+	if previousObj == nil {
+		_, err := w.cloudsqlClient.Instances.Get(w.projectID, mutatedObj.Spec.Name).Do()
+		if err == nil {
+			// No error has been returned, which means that ".spec.name" is already being used.
+			return fmt.Errorf("the name %q is already in use by an instance", mutatedObj.Spec.Name)
+		}
+		if !googleutil.IsNotFound(err) {
+			// An error has been returned, but it is not a "404 NOT FOUND" one.
+			return fmt.Errorf("failed to check whether %q can be used as an instance name: %v", mutatedObj.Spec.Name, err)
+		}
+		return nil
 	}
 	return nil
 }

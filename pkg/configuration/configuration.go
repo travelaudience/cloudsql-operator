@@ -27,7 +27,7 @@ import (
 
 // Admission holds admission-related configuration options.
 type Admission struct {
-	// BindAddress is the "host:port" combination used to serve the admission webhook.
+	// BindAddress is the "host:port" pair where the admission webhook is to be served.
 	BindAddress string `toml:"bind_address"`
 }
 
@@ -40,7 +40,7 @@ func (a *Admission) setDefaults() {
 
 // Cluster holds cluster-related configuration options.
 type Cluster struct {
-	// Kubeconfig holds the path to the kubeconfig file to use.
+	// Kubeconfig holds the path to the kubeconfig file to use (may be empty for in-cluster configuration).
 	Kubeconfig string `toml:"kubeconfig"`
 	// Namespace holds the namespace where cloudsql-postgres-operator is deployed.
 	Namespace string `toml:"namespace"`
@@ -59,23 +59,23 @@ type Configuration struct {
 	Admission Admission `toml:"admission"`
 	// Cluster holds cluster-related configuration options.
 	Cluster Cluster `toml:"cluster"`
+	// GCP holds GCP-related configuration options.
+	GCP GCP `toml:"gcp"`
 	// Logging holds logging-related configuration options.
 	Logging Logging `toml:"logging"`
-	// Project holds project-related configuration options.
-	Project Project `toml:"project"`
 }
 
 // SetDefaults sets default values where necessary.
 func (c *Configuration) setDefaults() {
 	c.Admission.setDefaults()
 	c.Cluster.setDefaults()
+	c.GCP.setDefaults()
 	c.Logging.setDefaults()
-	c.Project.setDefaults()
 }
 
 // Logging holds logging-related configuration options.
 type Logging struct {
-	// Level holds the log level to use.
+	// Level holds the log level to use (possible values: "trace", "debug", "info", "warn", "error", "fatal" and "panic").
 	Level string `toml:"level"`
 }
 
@@ -86,14 +86,16 @@ func (l *Logging) setDefaults() {
 	}
 }
 
-// Project holds project-related configuration options.
-type Project struct {
-	// ProjectID holds the name of the Google Cloud Platform project where cloudsql-postgres-operator is managing Cloud SQL instances.
+// GCP holds project-related configuration options.
+type GCP struct {
+	// AdminServiceAccountKeyPath holds the path to the file that contains credentials for an IAM Service Account with the "roles/cloudsql.admin" role.
+	AdminServiceAccountKeyPath string `toml:"admin_service_account_key_path"`
+	// ProjectID holds the ID of the Google Cloud Platform project where cloudsql-postgres-operator is managing Cloud SQL instances.
 	ProjectID string `toml:"project_id"`
 }
 
 // setDefaults sets default values where necessary.
-func (p *Project) setDefaults() {
+func (g *GCP) setDefaults() {
 	// Nothing to do.
 }
 

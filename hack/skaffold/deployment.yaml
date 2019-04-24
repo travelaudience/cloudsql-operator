@@ -1,4 +1,15 @@
 apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app: cloudsql-postgres-operator
+  name: cloudsql-postgres-operator
+  namespace: cloudsql-postgres-operator
+stringData:
+  admin-key.json: |
+    <iam-service-account-credentials-file>
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
@@ -7,6 +18,9 @@ metadata:
   namespace: cloudsql-postgres-operator
 data:
   config.toml: |
+    [gcp]
+    admin_service_account_key_path = "/secret/admin-key.json"
+    project_id = "<project-id>"
     [logging]
     level = "trace"
 ---
@@ -41,7 +55,7 @@ spec:
     args:
     - /cloudsql-postgres-operator
     - --config-file
-    - /cfg/config.toml
+    - /config/config.toml
     ports:
     - name: admission
       containerPort: 443
@@ -51,12 +65,17 @@ spec:
         port: admission
         scheme: HTTPS
     volumeMounts:
-    - mountPath: /cfg/config.toml
-      subPath: config.toml
-      name: cfg
+    - mountPath: /config
+      name: config
+      readOnly: true
+    - mountPath: /secret
+      name: secret
       readOnly: true
   volumes:
-  - name: cfg
+  - name: config
     configMap:
       name: cloudsql-postgres-operator
+  - name: secret
+    secret:
+      secretName: cloudsql-postgres-operator
   serviceAccountName: cloudsql-postgres-operator

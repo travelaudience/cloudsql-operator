@@ -39,11 +39,12 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/admission"
-	cloudsqlclient "github.com/travelaudience/cloudsql-postgres-operator/pkg/client/clientset/versioned"
+	selfclient "github.com/travelaudience/cloudsql-postgres-operator/pkg/client/clientset/versioned"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/configuration"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/crds"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/signals"
+	googleutil "github.com/travelaudience/cloudsql-postgres-operator/pkg/util/google"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/version"
 )
 
@@ -93,13 +94,18 @@ func main() {
 		log.Fatalf("failed to build kubernetes client: %v", err)
 	}
 	// Create a client for the cloudsql-postgres-operator API.
-	cloudsqlClient, err := cloudsqlclient.NewForConfig(kubeConfig)
+	selfClient, err := selfclient.NewForConfig(kubeConfig)
 	if err != nil {
 		log.Fatalf("failed to build cloudsql-postgres-operator client: %v", err)
 	}
+	// Create a client for the Cloud SQL Admin API.
+	cloudsqlClient, err := googleutil.NewCloudSQLAdminClient(config.GCP.AdminServiceAccountKeyPath)
+	if err != nil {
+		log.Fatalf("failed to build cloud sql admin api client: %v", err)
+	}
 
 	// Create an instance of the admission webhook.
-	w, err := admission.NewWebhook(kubeClient, cloudsqlClient, config)
+	w, err := admission.NewWebhook(kubeClient, selfClient, cloudsqlClient, config)
 	if err != nil {
 		log.Fatalf("failed to create the admission webhook: %v", err)
 	}

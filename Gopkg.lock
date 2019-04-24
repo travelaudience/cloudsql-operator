@@ -736,6 +736,7 @@
     "github.com/sirupsen/logrus",
     "golang.org/x/oauth2/google",
     "google.golang.org/api/googleapi",
+    "google.golang.org/api/option",
     "google.golang.org/api/sqladmin/v1beta4",
     "k8s.io/api/admission/v1beta1",
     "k8s.io/api/admissionregistration/v1beta1",

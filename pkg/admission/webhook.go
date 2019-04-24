@@ -27,7 +27,9 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/api/sqladmin/v1beta4"
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,7 +37,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
-	cloudsqlclient "github.com/travelaudience/cloudsql-postgres-operator/pkg/client/clientset/versioned"
+	selfClient "github.com/travelaudience/cloudsql-postgres-operator/pkg/client/clientset/versioned"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/configuration"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/crds"
 )
@@ -68,8 +70,8 @@ var (
 type Webhook struct {
 	// bindAddress is the bind address to use for the server.
 	bindAddress string
-	// cloudsqlClient is a client to the cloudsql-postgres-operator API.
-	cloudsqlClient cloudsqlclient.Interface
+	// cloudsqlClient is a client to the Cloud SQL Admin API.
+	cloudsqlClient *sqladmin.Service
 	// codecs is the codec factory to use to serialize/deserialize resources.
 	codecs serializer.CodecFactory
 	// kubeClient is the Kubernetes client to use.
@@ -78,22 +80,25 @@ type Webhook struct {
 	namespace string
 	// projectID is the ID of the Google Cloud Project in which cloudsql-postgres-operator is managing Cloud SQL instances.
 	projectID string
+	// selfClient is a client to the cloudsql-postgres-operator API.
+	selfClient selfClient.Interface
 	// tlsCertificate is the TLS certificate (and private key) used to register and serve the admission webhook.
 	tlsCertificate tls.Certificate
 }
 
 // NewWebhook creates a new instance of the admission webhook.
-func NewWebhook(kubeClient kubernetes.Interface, cloudsqlClient cloudsqlclient.Interface, config configuration.Configuration) (*Webhook, error) {
+func NewWebhook(kubeClient kubernetes.Interface, selfClient selfClient.Interface, cloudsqlClient *sqladmin.Service, config configuration.Configuration) (*Webhook, error) {
 	// Create a new scheme and register the PostgresqlInstance type so we can serialize/deserialize it.
 	scheme := runtime.NewScheme()
 	scheme.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.PostgresqlInstance{})
 	return &Webhook{
 		bindAddress:    config.Admission.BindAddress,
 		cloudsqlClient: cloudsqlClient,
+		selfClient:     selfClient,
 		codecs:         serializer.NewCodecFactory(scheme),
 		kubeClient:     kubeClient,
 		namespace:      config.Cluster.Namespace,
-		projectID:      config.Project.ProjectID,
+		projectID:      config.GCP.ProjectID,
 	}, nil
 }
 
@@ -183,7 +188,7 @@ func (w *Webhook) handleAdmission(res http.ResponseWriter, req *http.Request) {
 func (w *Webhook) readObject(kind *schema.GroupVersionKind, namespace, name string) (runtime.Object, error) {
 	switch kind {
 	case postgresqlInstanceGvk:
-		return w.cloudsqlClient.CloudsqlV1alpha1().PostgresqlInstances().Get(name, metav1.GetOptions{})
+		return w.selfClient.CloudsqlV1alpha1().PostgresqlInstances().Get(name, metav1.GetOptions{})
 	default:
 		return nil, fmt.Errorf("unsupported gvk: %s", kind.String())
 	}
@@ -242,6 +247,10 @@ func (w *Webhook) validateAndMutateResource(rev admissionv1beta1.AdmissionReview
 		// Hence we try to read it directly from the Kubernetes API using the data at hand.
 		previousObj, err = w.readObject(currentGVK, rev.Request.Namespace, rev.Request.Name)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// The resource doesn't exist anymore, so we should authorize the request.
+				return admissionResponseOK()
+			}
 			return admissionResponseFromError(fmt.Errorf("failed to read deleted object: %v", err))
 		}
 	default:
