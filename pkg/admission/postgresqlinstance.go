@@ -88,8 +88,8 @@ func (w *Webhook) validateAndMutatePostgresqlInstance(currentObj, previousObj *v
 	// Check whether the current request is a DELETE request and act accordingly.
 	// In this case, we allow the request if and only if the "cloudsql.travelaudience.com/allow-deletion" annotation is present on the resource and set to "true".
 	if currentObj == nil && previousObj != nil {
-		if v, exists := previousObj.Annotations[constants.AllowDeletionAnnotationKey]; !exists || v != constants.True {
-			return nil, fmt.Errorf("the resource cannot be deleted unless the %q annotation is set to %q", constants.AllowDeletionAnnotationKey, constants.True)
+		if v, exists := previousObj.Annotations[constants.AllowDeletionAnnotationKey]; !exists || v != v1alpha1.True {
+			return nil, fmt.Errorf("the resource cannot be deleted unless the %q annotation is set to %q", constants.AllowDeletionAnnotationKey, v1alpha1.True)
 		}
 		return nil, nil
 	}
@@ -130,7 +130,7 @@ func mutatePostgresqlInstanceMetadataAnnotations(mutatedObj, _ *v1alpha1.Postgre
 	}
 	// Inject the "cloudsql.travelaudience.com/allow-deletion" annotation with a value of "false" if the annotation is not present or is empty.
 	if v, exists := mutatedObj.Annotations[constants.AllowDeletionAnnotationKey]; !exists || v == "" {
-		mutatedObj.Annotations[constants.AllowDeletionAnnotationKey] = constants.False
+		mutatedObj.Annotations[constants.AllowDeletionAnnotationKey] = v1alpha1.False
 	}
 	return nil
 }

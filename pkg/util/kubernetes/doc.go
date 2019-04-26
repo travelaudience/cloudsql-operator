@@ -14,8 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +k8s:deepcopy-gen=package
-// +groupName=cloudsql.travelaudience.com
-
-// Package v1alpha1 contains the "v1alpha1" version of the "cloudsql.travelaudience.com" API.
-package v1alpha1
+// Package kubernetes contains methods that facilitate working with the Kubernetes API.
+package kubernetes

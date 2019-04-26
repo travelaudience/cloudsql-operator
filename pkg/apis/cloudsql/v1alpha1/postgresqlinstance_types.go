@@ -18,8 +18,15 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
-	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
+const (
+	// Any represents an arbitrary choice of a value.
+	Any = "Any"
+	// False represents the "false" boolean value.
+	False = "false"
+	// True represents the "true" boolean value.
+	True = "true"
 )
 
 const (
@@ -31,12 +38,12 @@ const (
 
 const (
 	// PostgresqlInstanceSpecLocationZoneAny represents an arbitrary choice of a zone for a CSQLP instance.
-	PostgresqlInstanceSpecLocationZoneAny = PostgresqlInstanceSpecLocationZone(constants.Any)
+	PostgresqlInstanceSpecLocationZoneAny = PostgresqlInstanceSpecLocationZone(Any)
 )
 
 const (
 	// PostgresqlInstanceSpecMaintenanceDayAny represents an arbitrary choice of a day of the week for periodic maintenance of a CSQLP instance.
-	PostgresqlInstanceSpecMaintenanceDayAny = PostgresqlInstanceSpecMaintenanceDay(constants.Any)
+	PostgresqlInstanceSpecMaintenanceDayAny = PostgresqlInstanceSpecMaintenanceDay(Any)
 	// PostgresqlInstanceSpecMaintenanceDayMonday represents the choice of Mondays for periodic maintenance of a CSQLP instance.
 	PostgresqlInstanceSpecMaintenanceDayMonday = PostgresqlInstanceSpecMaintenanceDay("Monday")
 	// PostgresqlInstanceSpecMaintenanceDayTuesday represents the choice of Tuesdays for periodic maintenance of a CSQLP instance.
@@ -55,7 +62,7 @@ const (
 
 const (
 	// PostgresqlInstanceSpecMaintenanceHourAny represents an arbitrary choice of an hour of the day for periodic maintenance of a CSQLP instance.
-	PostgresqlInstanceSpecMaintenanceHourAny = constants.Any
+	PostgresqlInstanceSpecMaintenanceHourAny = Any
 )
 
 const (
@@ -125,6 +132,7 @@ type PostgresqlInstanceSpec struct {
 	Networking *PostgresqlInstanceSpecNetworking `json:"networking"`
 	// Paused indicates whether reconciliation of the CSQLP instance is paused.
 	// Meant only to facilitate end-to-end testing.
+	// TODO Find a way to not leak this testing implementation detail into the API.
 	Paused bool `json:"paused,omitempty"`
 	// Resources allows for customizing the resource requests for the CSQLP instance.
 	// +optional

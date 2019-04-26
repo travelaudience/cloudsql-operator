@@ -55,7 +55,7 @@ var _ = Describe("PostgresqlInstance", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		// Make sure that the "cloudsql.travelaudience.com/allow-deletion" annotation has the expected value.
-		Expect(obj.Annotations).To(HaveKeyWithValue(constants.AllowDeletionAnnotationKey, constants.False))
+		Expect(obj.Annotations).To(HaveKeyWithValue(constants.AllowDeletionAnnotationKey, v1alpha1.False))
 
 		// Make sure that all fields have the expected values.
 		Expect(*obj.Spec.Availability.Type).To(Equal(admission.PostgresqlInstanceSpecAvailabilityTypeDefault))
@@ -111,10 +111,10 @@ var _ = Describe("PostgresqlInstance", func() {
 		Expect(err.Error()).To(MatchRegexp(`the resource cannot be deleted unless the "cloudsql.travelaudience.com/allow-deletion" annotation is set to "true"`))
 
 		// Update the value of the "cloudsql.travelaudience.com/allow-deletion" annotation, setting it to "true".
-		obj.Annotations[constants.AllowDeletionAnnotationKey] = constants.True
+		obj.Annotations[constants.AllowDeletionAnnotationKey] = v1alpha1.True
 		obj, err = f.SelfClient.CloudsqlV1alpha1().PostgresqlInstances().Update(obj)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(obj.Annotations).To(HaveKeyWithValue(constants.AllowDeletionAnnotationKey, constants.True))
+		Expect(obj.Annotations).To(HaveKeyWithValue(constants.AllowDeletionAnnotationKey, v1alpha1.True))
 
 		// Make sure that the PostgresqlInstance can be deleted.
 		err = f.SelfClient.CloudsqlV1alpha1().PostgresqlInstances().Delete(obj.Name, metav1.NewDeleteOptions(0))

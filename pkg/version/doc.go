@@ -14,13 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package constants
-
-const (
-	// Any represents an arbitrary choice of a value.
-	Any = "Any"
-	// False represents the "false" boolean value.
-	False = "false"
-	// True represents the "true" boolean value.
-	True = "true"
-)
+// Package version is used to facilitate setting the version of cloudsql-postgres-operator during the build process.
+package version

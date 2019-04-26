@@ -21,6 +21,7 @@ package framework
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
 )
 
@@ -44,7 +45,7 @@ func (f *Framework) DeletePostgresqlInstanceByName(metadataName string) error {
 	if err != nil {
 		return nil
 	}
-	t.Annotations[constants.AllowDeletionAnnotationKey] = constants.True
+	t.Annotations[constants.AllowDeletionAnnotationKey] = v1alpha1.True
 	if _, err := f.SelfClient.CloudsqlV1alpha1().PostgresqlInstances().Update(t); err != nil {
 		return err
 	}
