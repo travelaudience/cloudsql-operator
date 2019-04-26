@@ -41,13 +41,16 @@ gen: dep
 
 # skaffold deploys cloudsql-postgres-operator to the Kubernetes cluster targeted by the current context.
 .PHONY: skaffold
+skaffold: ADMIN_KEY_JSON_FILE ?= $(ROOT)/admin-key.json
 skaffold: MODE ?= dev
 skaffold: PROFILE ?= minikube
+skaffold: PROJECT_ID ?= cloudsql-postgres-operator
 skaffold:
-	@if [[ ! "$(MODE)" == "delete" ]]; then \
-		GOOS=linux GOARCH=amd64 $(MAKE) -C $(ROOT) build; \
-	fi
-	@skaffold $(MODE) --filename $(ROOT)/hack/skaffold/skaffold.yaml --profile $(PROFILE)
+	@ADMIN_KEY_JSON_FILE=$(ADMIN_KEY_JSON_FILE) \
+	MODE=$(MODE) \
+	PROFILE=$(PROFILE) \
+	PROJECT_ID=$(PROJECT_ID) \
+	$(ROOT)/hack/skaffold/skaffold.sh
 
 # test.e2e runs the end-to-end test suite.
 .PHONY: test.e2e

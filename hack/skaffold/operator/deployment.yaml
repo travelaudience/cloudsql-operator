@@ -5,9 +5,9 @@ metadata:
     app: cloudsql-postgres-operator
   name: cloudsql-postgres-operator
   namespace: cloudsql-postgres-operator
-stringData:
+data:
   admin-key.json: |
-    <iam-service-account-credentials-file>
+    __BASE64_ENCODED_ADMIN_KEY_JSON__
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -20,7 +20,7 @@ data:
   config.toml: |
     [gcp]
     admin_service_account_key_path = "/secret/admin-key.json"
-    project_id = "<project-id>"
+    project_id = "__PROJECT_ID__"
     [logging]
     level = "trace"
 ---
@@ -50,7 +50,7 @@ metadata:
 spec:
   containers:
   - name: cloudsql-postgres-operator
-    image: "gcr.io/<project-id>/cloudsql-postgres-operator"
+    image: "gcr.io/__PROJECT_ID__/cloudsql-postgres-operator"
     imagePullPolicy: IfNotPresent
     args:
     - /cloudsql-postgres-operator

@@ -1,20 +1,20 @@
-apiVersion: skaffold/v1beta6
+apiVersion: skaffold/v1beta9
 kind: Config
 build:
   artifacts:
-  - image: "gcr.io/<project-id>/cloudsql-postgres-operator"
+  - image: "gcr.io/__PROJECT_ID__/cloudsql-postgres-operator"
     docker:
-      dockerfile: hack/skaffold/Dockerfile
+      dockerfile: __TMP_DIR__/Dockerfile
 deploy:
   kubectl:
     manifests:
     - docs/deployment/00-prereqs.yaml
-    - hack/skaffold/deployment.yaml
+    - __TMP_DIR__/deployment.yaml
 profiles:
 - name: gke
   build:
     googleCloudBuild:
-      projectId: "<project-id>"
+      projectId: "__PROJECT_ID__"
 - name: minikube
   build:
     local: {}
