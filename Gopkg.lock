@@ -625,7 +625,7 @@
   version = "kubernetes-1.13.4"
 
 [[projects]]
-  digest = "1:7ab3fe1b9b86df87d6a6eff2ec2246b651cbbed03d84cea1ce2072a5bd52c001"
+  digest = "1:43935b110bab4a1a080a6ecae57cec32a540fc007a2c74d5ce48235bddff05a9"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -696,6 +696,7 @@
     "util/integer",
     "util/jsonpath",
     "util/retry",
+    "util/workqueue",
   ]
   pruneopts = "UT"
   revision = "b40b2a5939e43f7ffe0028ad67586b7ce50bb675"
@@ -753,6 +754,7 @@
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/runtime",
     "k8s.io/apimachinery/pkg/util/uuid",
+    "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/watch",
     "k8s.io/client-go/discovery",
     "k8s.io/client-go/discovery/fake",
@@ -770,6 +772,7 @@
     "k8s.io/client-go/tools/watch",
     "k8s.io/client-go/util/cert",
     "k8s.io/client-go/util/flowcontrol",
+    "k8s.io/client-go/util/workqueue",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

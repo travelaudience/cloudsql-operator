@@ -8,6 +8,10 @@ kubeconfig = "/home/travelaudience/.kube/config"
 # namespace holds the namespace where cloudsql-postgres-operator is deployed.
 namespace = "cloudsql-postgres-operator"
 
+[controllers]
+# resync_period_seconds holds the resync period to use for the controllers, expressed in seconds.
+resync_period_seconds = 180
+
 [logging]
 # level holds the log level to use (possible values: "trace", "debug", "info", "warn", "error", "fatal" and "panic").
 level = "debug"

@@ -59,6 +59,8 @@ type Configuration struct {
 	Admission Admission `toml:"admission"`
 	// Cluster holds cluster-related configuration options.
 	Cluster Cluster `toml:"cluster"`
+	// Controllers holds controller-related configuration options.
+	Controllers Controllers `toml:"controllers"`
 	// GCP holds GCP-related configuration options.
 	GCP GCP `toml:"gcp"`
 	// Logging holds logging-related configuration options.
@@ -69,8 +71,22 @@ type Configuration struct {
 func (c *Configuration) setDefaults() {
 	c.Admission.setDefaults()
 	c.Cluster.setDefaults()
+	c.Controllers.setDefaults()
 	c.GCP.setDefaults()
 	c.Logging.setDefaults()
+}
+
+// Controllers holds controller-related configuration options.
+type Controllers struct {
+	// ResyncPeriodSeconds holds the resync period to use for the controllers, expressed in seconds.
+	ResyncPeriodSeconds int32 `toml:"resync_period_seconds"`
+}
+
+// setDefaults sets default values where necessary.
+func (c *Controllers) setDefaults() {
+	if c.ResyncPeriodSeconds == 0 {
+		c.ResyncPeriodSeconds = constants.DefaultControllersResyncPeriodSeconds
+	}
 }
 
 // Logging holds logging-related configuration options.

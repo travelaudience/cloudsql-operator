@@ -23,4 +23,6 @@ const (
 	DefaultCloudsqlPostgresOperatorNamespace = "cloudsql-postgres-operator"
 	// DefaultWebhookBindAddress is the address to which the admission webhook binds by default.
 	DefaultWebhookBindAddress = "0.0.0.0:443"
+	// DefaultControllersResyncPeriodSeconds is the resync period (in seconds) to use by default.
+	DefaultControllersResyncPeriodSeconds = 120
 )

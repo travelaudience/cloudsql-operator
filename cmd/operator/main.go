@@ -25,6 +25,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	cloudsqladmin "google.golang.org/api/sqladmin/v1beta4"
 	corev1 "k8s.io/api/core/v1"
 	extsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -32,7 +33,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -40,8 +40,10 @@ import (
 
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/admission"
 	selfclient "github.com/travelaudience/cloudsql-postgres-operator/pkg/client/clientset/versioned"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/client/informers/externalversions"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/configuration"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/controllers"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/crds"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/signals"
 	googleutil "github.com/travelaudience/cloudsql-postgres-operator/pkg/util/google"
@@ -90,6 +92,11 @@ func main() {
 	}
 	// Create a Kubernetes client.
 	kubeClient, err := kubernetes.NewForConfig(kubeConfig)
+	if err != nil {
+		log.Fatalf("failed to build kubernetes client: %v", err)
+	}
+	// Create a client for the apiextensions.k8s.io/v1beta1 API so that we can later create or update our CRDs.
+	extsClient, err := extsclientset.NewForConfig(kubeConfig)
 	if err != nil {
 		log.Fatalf("failed to build kubernetes client: %v", err)
 	}
@@ -166,7 +173,7 @@ func main() {
 					<-stopCh
 					fn()
 				}()
-				run(ctx, kubeConfig)
+				run(ctx, config, kubeClient, extsClient, selfClient, er, cloudsqlClient)
 			},
 			OnStoppedLeading: func() {
 				// We've stopped leading, so we must exit immediately.
@@ -180,18 +187,28 @@ func main() {
 	})
 }
 
-func run(ctx context.Context, kubeConfig *rest.Config) {
-	// Create a client for the apiextensions.k8s.io/v1beta1 so that we can create or update our CRDs.
-	extsClient, err := extsclientset.NewForConfig(kubeConfig)
-	if err != nil {
-		log.Fatalf("failed to build kubernetes client: %v", err)
-	}
+// run creates or updates our CRDs, starts the controller for Postgresql
+func run(ctx context.Context, config configuration.Configuration, kubeClient kubernetes.Interface, extsClient extsclientset.Interface, selfClient selfclient.Interface, er record.EventRecorder, cloudsqlClient *cloudsqladmin.Service) {
 	// Create or update our CRDs.
 	if err := crds.CreateOrUpdateCRDs(extsClient); err != nil {
 		log.Fatalf("failed to create or update crds: %v", err)
 	}
-	// Wait for the context to be canceled.
-	<-ctx.Done()
+	// Create a shared informer factory for our API types.
+	selfInformerFactory := externalversions.NewSharedInformerFactory(selfClient, time.Duration(config.Controllers.ResyncPeriodSeconds)*time.Second)
+	// Create an instance of the controller for PostgresqlInstance resources.
+	postgresqlInstanceController := controllers.NewPostgresqlInstanceController(config, kubeClient, er, selfInformerFactory.Cloudsql().V1alpha1().PostgresqlInstances(), cloudsqlClient)
+	// Start the shared informer factory.
+	selfInformerFactory.Start(ctx.Done())
+
+	// Start the controller for PostgresqlInstance resources.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := postgresqlInstanceController.Run(ctx); err != nil {
+			log.Error(err)
+		}
+	}()
+
 	// Wait for all goroutines to terminate.
 	wg.Wait()
 	// Confirm successful shutdown.
