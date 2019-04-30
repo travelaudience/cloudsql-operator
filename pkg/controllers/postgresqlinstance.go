@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/kubernetes/pkg/util/slice"
 
 	v1alpha1api "github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
 	v1alpha1client "github.com/travelaudience/cloudsql-postgres-operator/pkg/client/clientset/versioned"
@@ -111,10 +112,36 @@ func (c *PostgresqlInstanceController) processQueueItem(key string) error {
 	if err != nil {
 		// The PostgresqlInstance may no longer exist, in which case we stop processing.
 		if kubeerrors.IsNotFound(err) {
-			runtime.HandleError(fmt.Errorf("postgresqlinstance %q in work queue no longer exists", key))
+			c.logger.Debugf("postgresqlinstance %q in work queue no longer exists", key)
 			return nil
 		}
 		return err
+	}
+	// Create a deep copy of the PostgresqlInstance resource so we don't possibly mutate the cache.
+	p = p.DeepCopy()
+
+	// Check whether the PostgresqlInstance resource is being deleted (indicated by a non-zero deletion timestamp).
+	if p.DeletionTimestamp.IsZero() {
+		// The PostgresqlInstance resource is not being deleted, so we must add the finalizer in case it is not already present.
+		if !slice.ContainsString(p.Finalizers, constants.CleanupFinalizer, nil) {
+			p.Finalizers = append(p.Finalizers, constants.CleanupFinalizer)
+			if p, err = c.selfClient.CloudsqlV1alpha1().PostgresqlInstances().Update(p); err != nil {
+				return err
+			}
+		}
+	} else {
+		// The PostgresqlInstance resource is being deleted, so we must delete the CSQLP instance and remove the finalizer.
+		if slice.ContainsString(p.Finalizers, constants.CleanupFinalizer, nil) {
+			if err := c.deleteInstance(p); err != nil {
+				return err
+			}
+			p.Finalizers = slice.RemoveString(p.Finalizers, constants.CleanupFinalizer, nil)
+			if _, err = c.selfClient.CloudsqlV1alpha1().PostgresqlInstances().Update(p); err != nil {
+				return err
+			}
+		}
+		// The finalizer has finished, so there is nothing else to do.
+		return nil
 	}
 
 	// If the PostgresqlInstance resource is marked as being paused, stop processing immediately.
@@ -129,8 +156,8 @@ func (c *PostgresqlInstanceController) processQueueItem(key string) error {
 	if err != nil {
 		// If we've got an error other than "404 NOT FOUND", we stop processing and propagate it.
 		if !google.IsNotFound(err) {
-			c.logger.Debugf("failed to check if instance with name %q exists: %v", p.Spec.Name, err)
-			return fmt.Errorf("failed to check if instance with name %q exists: %v", p.Spec.Name, err)
+			c.logger.Debugf("failed to check if an instance with name %q exists: %v", p.Spec.Name, err)
+			return fmt.Errorf("failed to check if an instance with name %q exists: %v", p.Spec.Name, err)
 		}
 		// At this point we know that no instance having ".spec.name" as its name exists, so we proceed to creating it.
 		if instance, err = c.createInstance(p); err != nil {
@@ -160,7 +187,7 @@ func (c *PostgresqlInstanceController) processQueueItem(key string) error {
 
 // createInstance attempts to create a CSQLP instance based on the specified PostgresqlInstance resource.
 func (c *PostgresqlInstanceController) createInstance(postgresqlInstance *v1alpha1api.PostgresqlInstance) (*cloudsqladmin.DatabaseInstance, error) {
-	c.logger.Debugf("creating instance with name %q", postgresqlInstance.Spec.Name)
+	c.logger.Infof("creating instance %q", postgresqlInstance.Spec.Name)
 	// Build the DatabaseInstance object based on the specified PostgresqlInstance resource.
 	instance := buildDatabaseInstance(postgresqlInstance)
 	// Attempt to create the DatabaseInstance object.
@@ -185,4 +212,24 @@ func (c *PostgresqlInstanceController) createInstance(postgresqlInstance *v1alph
 	}
 	// Grab and return the most up-to-date representation of the CSQLP instance.
 	return c.cloudsqlClient.Instances.Get(c.projectID, postgresqlInstance.Spec.Name).Do()
+}
+
+// deleteInstance attempts to delete the CSQLP instance associated with the specified PostgresqlInstance resource.
+func (c *PostgresqlInstanceController) deleteInstance(postgresqlInstance *v1alpha1api.PostgresqlInstance) error {
+	c.logger.Debugf("checking whether instance %q needs to be deleted", postgresqlInstance.Spec.Name)
+	// Before issuing a delete request (which can result in a "409 CONFLICT" response in case the CSQLP instance has already and recently been deleted), make sure the CSQLP instance is still listed.
+	if _, err := c.cloudsqlClient.Instances.Get(c.projectID, postgresqlInstance.Spec.Name).Do(); err != nil {
+		if google.IsNotFound(err) {
+			c.logger.Debugf("instance %q has already been deleted", postgresqlInstance.Spec.Name)
+			return nil
+		}
+		return err
+	}
+	c.logger.Infof("deleting instance %q", postgresqlInstance.Spec.Name)
+	// At this point we know the CSQLP instance already exists, so we issue the delete request.
+	if _, err := c.cloudsqlClient.Instances.Delete(c.projectID, postgresqlInstance.Spec.Name).Do(); err != nil {
+		return err
+	}
+	c.logger.Debugf("instance %q has been deleted", postgresqlInstance.Spec.Name)
+	return nil
 }

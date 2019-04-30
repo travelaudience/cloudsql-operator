@@ -573,7 +573,7 @@
   version = "kubernetes-1.13.4"
 
 [[projects]]
-  digest = "1:51ab4e2706ef5cde1f05a4d5e13d6ff258f5861bb4edf6143a4b4052884f86d7"
+  digest = "1:624e30badeaacfc1631c6cd241d023df84a9db5c91bb0b7ad8cf9dcefd8b4016"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
@@ -607,6 +607,7 @@
     "pkg/util/mergepatch",
     "pkg/util/naming",
     "pkg/util/net",
+    "pkg/util/rand",
     "pkg/util/runtime",
     "pkg/util/sets",
     "pkg/util/strategicpatch",
@@ -719,6 +720,14 @@
   revision = "6b3d3b2d5666c5912bab8b7bf26bf50f75a8f887"
 
 [[projects]]
+  digest = "1:91cf9f30b41219ee9f2b1feee84b9d40f7ab5704199ebf11c1924c9ab0d680de"
+  name = "k8s.io/kubernetes"
+  packages = ["pkg/util/slice"]
+  pruneopts = "UT"
+  revision = "b7394102d6ef778017f2ca4046abbaa23b88c290"
+  version = "v1.14.1"
+
+[[projects]]
   digest = "1:7719608fe0b52a4ece56c2dde37bedd95b938677d1ab0f84b8a7852e4c59f849"
   name = "sigs.k8s.io/yaml"
   packages = ["."]
@@ -773,6 +782,7 @@
     "k8s.io/client-go/util/cert",
     "k8s.io/client-go/util/flowcontrol",
     "k8s.io/client-go/util/workqueue",
+    "k8s.io/kubernetes/pkg/util/slice",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
