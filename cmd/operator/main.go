@@ -196,7 +196,7 @@ func run(ctx context.Context, config configuration.Configuration, kubeClient kub
 	// Create a shared informer factory for our API types.
 	selfInformerFactory := externalversions.NewSharedInformerFactory(selfClient, time.Duration(config.Controllers.ResyncPeriodSeconds)*time.Second)
 	// Create an instance of the controller for PostgresqlInstance resources.
-	postgresqlInstanceController := controllers.NewPostgresqlInstanceController(config, kubeClient, er, selfInformerFactory.Cloudsql().V1alpha1().PostgresqlInstances(), cloudsqlClient)
+	postgresqlInstanceController := controllers.NewPostgresqlInstanceController(config, kubeClient, selfClient, er, selfInformerFactory.Cloudsql().V1alpha1().PostgresqlInstances(), cloudsqlClient)
 	// Start the shared informer factory.
 	selfInformerFactory.Start(ctx.Done())
 

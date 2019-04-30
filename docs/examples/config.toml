@@ -1,6 +1,6 @@
 [admission]
 # bind_address is the "host:port" pair where the admission webhook is to be served.
-bind_address = "0.0.0.0:8443"
+bind_address = "0.0.0.0:18443"
 
 [cluster]
 # kubeconfig holds the path to the kubeconfig file to use (may be empty for in-cluster configuration).
@@ -10,7 +10,7 @@ namespace = "cloudsql-postgres-operator"
 
 [controllers]
 # resync_period_seconds holds the resync period to use for the controllers, expressed in seconds.
-resync_period_seconds = 180
+resync_period_seconds = 10
 
 [logging]
 # level holds the log level to use (possible values: "trace", "debug", "info", "warn", "error", "fatal" and "panic").

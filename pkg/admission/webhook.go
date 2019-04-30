@@ -27,7 +27,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/api/sqladmin/v1beta4"
+	cloudsqladmin "google.golang.org/api/sqladmin/v1beta4"
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,7 +71,7 @@ type Webhook struct {
 	// bindAddress is the bind address to use for the server.
 	bindAddress string
 	// cloudsqlClient is a client to the Cloud SQL Admin API.
-	cloudsqlClient *sqladmin.Service
+	cloudsqlClient *cloudsqladmin.Service
 	// codecs is the codec factory to use to serialize/deserialize resources.
 	codecs serializer.CodecFactory
 	// kubeClient is the Kubernetes client to use.
@@ -87,7 +87,7 @@ type Webhook struct {
 }
 
 // NewWebhook creates a new instance of the admission webhook.
-func NewWebhook(kubeClient kubernetes.Interface, selfClient selfClient.Interface, cloudsqlClient *sqladmin.Service, config configuration.Configuration) (*Webhook, error) {
+func NewWebhook(kubeClient kubernetes.Interface, selfClient selfClient.Interface, cloudsqlClient *cloudsqladmin.Service, config configuration.Configuration) (*Webhook, error) {
 	// Create a new scheme and register the PostgresqlInstance type so we can serialize/deserialize it.
 	scheme := runtime.NewScheme()
 	scheme.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.PostgresqlInstance{})

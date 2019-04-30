@@ -17,6 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"strconv"
+	"strings"
+
+	cloudsqladmin "google.golang.org/api/sqladmin/v1beta4"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -115,7 +119,7 @@ type PostgresqlInstanceSpec struct {
 	Backups *PostgresqlInstanceSpecBackups `json:"backups"`
 	// Flags is a list of flags passed to the CSQLP instance.
 	// +optional
-	Flags []string `json:"flags"`
+	Flags PostgresqlInstanceSpecFlags `json:"flags"`
 	// Labels is a map of user-defined labels to be set on the CSQLP instance.
 	// +optional
 	Labels map[string]string `json:"labels"`
@@ -151,6 +155,11 @@ type PostgresqlInstanceSpecAvailability struct {
 // PostgresqlInstanceSpecAvailabilityType represents availability types for CSQLP instances.
 type PostgresqlInstanceSpecAvailabilityType string
 
+// APIValue returns the Cloud SQL Admin API value that represents the current availability type.
+func (v *PostgresqlInstanceSpecAvailabilityType) APIValue() string {
+	return strings.ToUpper(string(*v))
+}
+
 // PostgresqlInstanceSpecBackups allows for customizing the backup strategy for a CSQLP instance.
 type PostgresqlInstanceSpecBackups struct {
 	// Daily allows for customizing the daily backup strategy for the CSQLP instance.
@@ -168,6 +177,27 @@ type PostgresqlInstancSpecBackupsDaily struct {
 	StartTime *string `json:"startTime"`
 }
 
+// PostgresqlInstanceSpecFlags allows for customizing the database flags for a CSQLP instance.
+type PostgresqlInstanceSpecFlags []string
+
+// APIValue returns the Cloud SQL Admin API value that represents the current set of database flags.
+func (v *PostgresqlInstanceSpecFlags) APIValue() []*cloudsqladmin.DatabaseFlags {
+	f := make([]*cloudsqladmin.DatabaseFlags, 0)
+	for _, flag := range *v {
+		parts := strings.Split(flag, "=")
+		if len(parts) != 2 {
+			// If the current flag specifier is malformed, we skip it.
+			// This should never happen in practice, as the admission webhook rejects any PostgresqlInstance resources for which this does not hold.
+			continue
+		}
+		f = append(f, &cloudsqladmin.DatabaseFlags{
+			Name:  parts[0],
+			Value: parts[1],
+		})
+	}
+	return f
+}
+
 // PostgresqlInstanceSpecLocation allows for customizing the geographical location of a CSQLP instance.
 type PostgresqlInstanceSpecLocation struct {
 	// Region is the region where the CSQLP instance is located.
@@ -181,6 +211,16 @@ type PostgresqlInstanceSpecLocation struct {
 // PostgresqlInstanceSpecLocationZone represents a Google Cloud Platform zone where CSQLP instances may be located.
 type PostgresqlInstanceSpecLocationZone string
 
+// APIValue returns the Cloud SQL Admin API value that represents the current choice of zone.
+func (v *PostgresqlInstanceSpecLocationZone) APIValue() string {
+	switch *v {
+	case PostgresqlInstanceSpecLocationZoneAny:
+		return ""
+	default:
+		return string(*v)
+	}
+}
+
 // PostgresqlInstanceSpecMaintenance allows for customizing the maintenance window of a CSQLP instance.
 type PostgresqlInstanceSpecMaintenance struct {
 	// Day is the preferred day of the week for periodic maintenance of the CSQLP instance.
@@ -188,11 +228,45 @@ type PostgresqlInstanceSpecMaintenance struct {
 	Day *PostgresqlInstanceSpecMaintenanceDay `json:"day"`
 	// Hour is the preferred hour of the day (in UTC) for periodic maintenance of the CSQLP instance, in 24-hour format.
 	// +optional
-	Hour *string `json:"hour"`
+	Hour *PostgresqlInstanceSpecMaintenanceHour `json:"hour"`
 }
 
 // PostgresqlInstanceSpecMaintenanceDay represents a day of the week for periodic maintenance of a CSQLP instance.
 type PostgresqlInstanceSpecMaintenanceDay string
+
+// APIValue returns the Cloud SQL Admin API value that represents the current maintenance day.
+func (v *PostgresqlInstanceSpecMaintenanceDay) APIValue() int64 {
+	switch *v {
+	case PostgresqlInstanceSpecMaintenanceDayMonday:
+		return 1
+	case PostgresqlInstanceSpecMaintenanceDayTuesday:
+		return 2
+	case PostgresqlInstanceSpecMaintenanceDayWednesday:
+		return 3
+	case PostgresqlInstanceSpecMaintenanceDayThursday:
+		return 4
+	case PostgresqlInstanceSpecMaintenanceDayFriday:
+		return 5
+	case PostgresqlInstanceSpecMaintenanceDaySaturday:
+		return 6
+	case PostgresqlInstanceSpecMaintenanceDaySunday:
+		fallthrough
+	default:
+		return 7
+	}
+}
+
+// PostgresqlInstanceSpecMaintenanceHour represents a hour of the day for periodic maintenance of a CSQLP instance.
+type PostgresqlInstanceSpecMaintenanceHour string
+
+// APIValue returns the Cloud SQL Admin API value that represents the current maintenance hour.
+func (v *PostgresqlInstanceSpecMaintenanceHour) APIValue() int64 {
+	i, err := strconv.ParseInt(strings.TrimPrefix(string(*v), ":00"), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return i
+}
 
 // PostgresqlInstanceSpecNetworking allows for customizing the networking aspects of a CSQLP instance.
 type PostgresqlInstanceSpecNetworking struct {
@@ -218,7 +292,7 @@ type PostgresqlInstanceSpecNetworkingPrivateIP struct {
 type PostgresqlInstanceSpecNetworkingPublicIP struct {
 	// AuthorizedNetworks is a list of rules that authorize access to the CSQLP instance via a public IP address.
 	// +optional
-	AuthorizedNetworks []PostgresqlInstanceSpecNetworkingPublicIPAuthorizedNetwork `json:"authorizedNetworks"`
+	AuthorizedNetworks PostgresqlInstanceSpecNetworkingPublicIPAuthorizedNetworkList `json:"authorizedNetworks"`
 	// Enabled specifies whether the Cloud SQL for Postgresql Instance is accessible via a public IP address.
 	// +optional
 	Enabled *bool `json:"enabled"`
@@ -231,6 +305,24 @@ type PostgresqlInstanceSpecNetworkingPublicIPAuthorizedNetwork struct {
 	// Name is the name of the current rule.
 	// +optional
 	Name *string `json:"name"`
+}
+
+// PostgresqlInstanceSpecNetworkingPublicIPAuthorizedNetworkList allows for specifying a list of subnets for which to authorize access to a CSQLP instance via a public IP.
+type PostgresqlInstanceSpecNetworkingPublicIPAuthorizedNetworkList []PostgresqlInstanceSpecNetworkingPublicIPAuthorizedNetwork
+
+// APIValue returns the Cloud SQL Admin API value that represents the current list of authorized networks.
+func (v *PostgresqlInstanceSpecNetworkingPublicIPAuthorizedNetworkList) APIValue() []*cloudsqladmin.AclEntry {
+	r := make([]*cloudsqladmin.AclEntry, len(*v))
+	for _, an := range *v {
+		ae := &cloudsqladmin.AclEntry{
+			Value: an.Cidr,
+		}
+		if an.Name != nil {
+			ae.Name = *an.Name
+		}
+		r = append(r, ae)
+	}
+	return r
 }
 
 // PostgresqlInstanceSpecResources allows for customizing the resource requests for a CSQLP instance.
@@ -259,8 +351,28 @@ type PostgresqlInstanceSpecResourcesDisk struct {
 // PostgresqlInstanceSpecResourcesDiskType represents the types of disk that can be used for storage by the Cloud SQL for Postgresql instance.
 type PostgresqlInstanceSpecResourcesDiskType string
 
+// APIValue returns the Cloud SQL Admin API value that represents the current disk type.
+func (v *PostgresqlInstanceSpecResourcesDiskType) APIValue() string {
+	switch *v {
+	case PostgresqlInstanceSpecResourceDiskTypeHDD:
+		return "PD_HDD"
+	default:
+		return "PD_SSD"
+	}
+}
+
 // PostgresqlInstanceSpecVersion represents a supported Cloud SQL for PostgreSQL version.
 type PostgresqlInstanceSpecVersion string
+
+// APIValue returns the Cloud SQL Admin API value that represents the current Cloud SQL for PostgreSQL version.
+func (v *PostgresqlInstanceSpecVersion) APIValue() string {
+	switch *v {
+	case PostgresqlInstanceSpecVersion96:
+		fallthrough
+	default:
+		return "POSTGRES_9_6"
+	}
+}
 
 // PostgresqlInstanceStatus represents the status of a CSQLP instance.
 type PostgresqlInstanceStatus struct {

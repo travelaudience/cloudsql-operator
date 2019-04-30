@@ -181,8 +181,9 @@ a|
 | The preferred hour of the day (in UTC) for periodic maintenance of the instance, in 24-hour format.
 | `string`
 a|
-* **Default:** `04:00`.
+* **Default:** `Any` if `.spec.maintenance.day` is `Any`, `04:00` otherwise.
 * Must be equal to `Any` or represent a valid hour in 24-hour format (i.e. `hh:00`).
+* May be equal to `Any` _if and only if_ `.spec.maintenance.day` is `Any` as well.
 
 4+| **Naming**
 

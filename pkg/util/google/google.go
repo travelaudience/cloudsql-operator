@@ -33,7 +33,25 @@ const (
 	adminScope = "https://www.googleapis.com/auth/sqlservice.admin"
 )
 
-// IsNotFound indicates whether the specified error is the result of the server replying with http.StatusNotFound.
+// IsBadRequest indicates whether the specified error is the result of the Cloud SQL Admin API replying with http.StatusBadRequest.
+func IsBadRequest(err error) bool {
+	if err == nil {
+		return false
+	}
+	ae, ok := err.(*googleapi.Error)
+	return ok && ae.Code == http.StatusBadRequest
+}
+
+// IsConflict indicates whether the specified error is the result of the Cloud SQL Admin API replying with http.StatusConflict.
+func IsConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	ae, ok := err.(*googleapi.Error)
+	return ok && ae.Code == http.StatusConflict
+}
+
+// IsNotFound indicates whether the specified error is the result of the Cloud SQL Admin API replying with http.StatusNotFound.
 func IsNotFound(err error) bool {
 	if err == nil {
 		return false

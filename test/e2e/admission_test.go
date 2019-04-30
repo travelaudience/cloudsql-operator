@@ -66,7 +66,7 @@ var _ = Describe("PostgresqlInstance", func() {
 		Expect(*obj.Spec.Location.Region).To(Equal(admission.PostgresqlInstanceSpecLocationRegionDefault))
 		Expect(*obj.Spec.Location.Zone).To(Equal(admission.PostgresqlInstanceSpecLocationZoneDefault))
 		Expect(*obj.Spec.Maintenance.Day).To(Equal(admission.PostgresqlInstanceSpecMaintenanceDayDefault))
-		Expect(*obj.Spec.Maintenance.Hour).To(Equal(admission.PostgresqlInstanceSpecMaintenanceHourDefault))
+		Expect(*obj.Spec.Maintenance.Hour).To(Equal(admission.PostgresqlInstanceSpecMaintenanceHourDefault(*obj.Spec.Maintenance.Day)))
 		Expect(*obj.Spec.Networking.PrivateIP.Enabled).To(Equal(admission.PostgresqlInstanceSpecNetworkingPrivateIPEnabledDefault))
 		Expect(*obj.Spec.Networking.PrivateIP.Network).To(Equal(admission.PostgresqlInstanceSpecNetworkingPrivateIPNetworkDefault))
 		Expect(*obj.Spec.Networking.PublicIP.Enabled).To(BeTrue()) // NOTE: We have explicitly set ".spec.networking.publicIp.enabled" to "true" above.
@@ -111,6 +111,8 @@ var _ = Describe("PostgresqlInstance", func() {
 		Expect(err.Error()).To(MatchRegexp(`the resource cannot be deleted unless the "cloudsql.travelaudience.com/allow-deletion" annotation is set to "true"`))
 
 		// Update the value of the "cloudsql.travelaudience.com/allow-deletion" annotation, setting it to "true".
+		obj, err = f.SelfClient.CloudsqlV1alpha1().PostgresqlInstances().Get(obj.Name, metav1.GetOptions{})
+		Expect(err).NotTo(HaveOccurred())
 		obj.Annotations[constants.AllowDeletionAnnotationKey] = v1alpha1.True
 		obj, err = f.SelfClient.CloudsqlV1alpha1().PostgresqlInstances().Update(obj)
 		Expect(err).NotTo(HaveOccurred())
@@ -166,8 +168,9 @@ var _ = Describe("PostgresqlInstance", func() {
 			{
 				errorMessageRegex: `the hour of the day for periodic maintenance must be "Any" or a valid hour of the day in 24-hour format \(got "foo"\)`,
 				fn: func(instance *v1alpha1.PostgresqlInstance) {
+					h := v1alpha1.PostgresqlInstanceSpecMaintenanceHour("foo")
 					instance.Spec.Maintenance = &v1alpha1.PostgresqlInstanceSpecMaintenance{
-						Hour: pointers.NewString("foo"),
+						Hour: &h,
 					}
 				},
 			},

@@ -29,8 +29,8 @@ import (
 const (
 	// postgresqlInstanceSpecResourcesDiskSizeMinimumGbLowerBound is the lower bound on the value of the ".spec.resources.disk.sizeMinimumGb" field of a PostgresqlInstance resource.
 	postgresqlInstanceSpecResourcesDiskSizeMinimumGbLowerBound = 10
-	// postgresqlInstanceSpecFlagsSeparator is the separator that must be used between "<name>" and "<value>" in each item present in the ".spec.flags" field of a PostgresqlInstance resource.
-	postgresqlInstanceSpecFlagsSeparator = "="
+	// PostgresqlInstanceSpecFlagsSeparator is the separator that must be used between "<name>" and "<value>" in each item present in the ".spec.flags" field of a PostgresqlInstance resource.
+	PostgresqlInstanceSpecFlagsSeparator = "="
 	// postgresqlInstanceSpecNameProjectIDMaxLength is the maximum length that the ".spec.name" field of a PostgresqlInstance resource may have when concatenated with the Google Cloud Platform project's ID.
 	postgresqlInstanceSpecNameProjectIDMaxLength = 97
 	// PostgresqlInstanceSpecLabelsOwnerName is the name of the "owner" label set injected on the ".spec.labels" field of a PostgresqlInstance resource.
@@ -57,8 +57,6 @@ var (
 	PostgresqlInstanceSpecLocationZoneDefault = v1alpha1.PostgresqlInstanceSpecLocationZoneAny
 	// PostgresqlInstanceSpecMaintenanceDayDefault is the default value for the ".spec.maintenance.day" field of a PostgresqlInstance resource.
 	PostgresqlInstanceSpecMaintenanceDayDefault = v1alpha1.PostgresqlInstanceSpecMaintenanceDayAny
-	// PostgresqlInstanceSpecMaintenanceHourDefault is the default value for the ".spec.maintenance.hour" field of a PostgresqlInstance resource.
-	PostgresqlInstanceSpecMaintenanceHourDefault = "04:00"
 	// PostgresqlInstanceSpecNetworkingPrivateIPEnabledDefault is the default value for the ".spec.networking.privateIp.enabled" field of a PostgresqlInstance resource.
 	PostgresqlInstanceSpecNetworkingPrivateIPEnabledDefault = false
 	// PostgresqlInstanceSpecNetworkingPrivateIPNetworkDefault is the default value for the ".spec.networking.privateIp.network" field of a PostgresqlInstance resource.
@@ -188,7 +186,7 @@ func validateAndMutatePostgresqlInstanceSpecFlags(mutatedObj, _ *v1alpha1.Postgr
 	}
 	// Iterate over the list of flags and validate the format of each item.
 	for _, flag := range mutatedObj.Spec.Flags {
-		parts := strings.Split(flag, postgresqlInstanceSpecFlagsSeparator)
+		parts := strings.Split(flag, PostgresqlInstanceSpecFlagsSeparator)
 		if len(parts) != 2 {
 			return fmt.Errorf("flags must be specified in the \"<name>=<value>\" format (got %q)", flag)
 		}
@@ -240,7 +238,8 @@ func validateAndMutatePostgresqlInstanceSpecMaintenance(mutatedObj, _ *v1alpha1.
 	}
 	// If no value for ".spec.maintenance.hour" has been provided, use the default one.
 	if mutatedObj.Spec.Maintenance.Hour == nil {
-		mutatedObj.Spec.Maintenance.Hour = &PostgresqlInstanceSpecMaintenanceHourDefault
+		h := PostgresqlInstanceSpecMaintenanceHourDefault(*mutatedObj.Spec.Maintenance.Day)
+		mutatedObj.Spec.Maintenance.Hour = &h
 	}
 	// Make sure that ".spec.maintenance.day" contains a valid value.
 	switch *mutatedObj.Spec.Maintenance.Day {
@@ -253,10 +252,19 @@ func validateAndMutatePostgresqlInstanceSpecMaintenance(mutatedObj, _ *v1alpha1.
 	switch {
 	case *mutatedObj.Spec.Maintenance.Hour == v1alpha1.PostgresqlInstanceSpecMaintenanceHourAny:
 		// The value is valid.
-	case hourOfTheDayRegex.MatchString(*mutatedObj.Spec.Maintenance.Hour):
+	case hourOfTheDayRegex.MatchString(string(*mutatedObj.Spec.Maintenance.Hour)):
 		// The value is valid.
 	default:
 		return fmt.Errorf("the hour of the day for periodic maintenance must be %q or a valid hour of the day in 24-hour format (got %q)", v1alpha1.PostgresqlInstanceSpecMaintenanceDayAny, *mutatedObj.Spec.Maintenance.Hour)
+	}
+	// Make sure that ".spec.maintenance.hour" is "Any" if and only if".spec.maintenance.hour" is "Any" as well.
+	switch {
+	case *mutatedObj.Spec.Maintenance.Day == v1alpha1.PostgresqlInstanceSpecMaintenanceDayAny && *mutatedObj.Spec.Maintenance.Hour == v1alpha1.PostgresqlInstanceSpecMaintenanceHourAny:
+		// The combination is valid.
+	case *mutatedObj.Spec.Maintenance.Day != v1alpha1.PostgresqlInstanceSpecMaintenanceDayAny && *mutatedObj.Spec.Maintenance.Hour != v1alpha1.PostgresqlInstanceSpecMaintenanceHourAny:
+		// The combination is valid.
+	default:
+		return fmt.Errorf("the hour of the day for periodic maintenance may be %q if and only if the day of the week is %q", v1alpha1.PostgresqlInstanceSpecMaintenanceHourAny, v1alpha1.PostgresqlInstanceSpecMaintenanceDayAny)
 	}
 	return nil
 }
@@ -414,4 +422,13 @@ func validateAndMutatePostgresqlInstanceSpecVersion(mutatedObj, previousObj *v1a
 		return fmt.Errorf("the version of the instance must be %q (got %q)", v1alpha1.PostgresqlInstanceSpecVersion96, *mutatedObj.Spec.Version)
 	}
 	return nil
+}
+
+// PostgresqlInstanceSpecMaintenanceHourDefault returns the default value for the ".spec.maintenance.hour" field of a PostgresqlInstance resource based on the provided maintenance hour.
+func PostgresqlInstanceSpecMaintenanceHourDefault(v v1alpha1.PostgresqlInstanceSpecMaintenanceDay) v1alpha1.PostgresqlInstanceSpecMaintenanceHour {
+	if v == v1alpha1.PostgresqlInstanceSpecMaintenanceDayAny {
+		return v1alpha1.PostgresqlInstanceSpecMaintenanceHourAny
+	} else {
+		return v1alpha1.PostgresqlInstanceSpecMaintenanceHour("04:00")
+	}
 }
