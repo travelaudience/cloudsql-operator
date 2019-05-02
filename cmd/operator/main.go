@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"sync"
 	"time"
@@ -67,6 +68,9 @@ func init() {
 }
 
 func main() {
+	// Initialize our source of randomness.
+	rand.Seed(time.Now().UnixNano())
+
 	// Parse the provided command-line flags.
 	flag.Parse()
 

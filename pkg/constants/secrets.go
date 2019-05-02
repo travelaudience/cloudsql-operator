@@ -1,5 +1,3 @@
-// +build e2e
-
 /*
 Copyright 2019 The cloudsql-postgres-operator Authors.
 
@@ -16,22 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package framework
-
-import (
-	"math/rand"
-)
+package constants
 
 const (
-	// randomLetters is the set of characters used when generating random alphanumeric strings.
-	randomLetters = "abcdefghijklmnopqrstuvwxyz0123456789"
+	// PostgresqlInstancePasswordKey is the secret key that holds a given CSQLP instance's password.
+	PostgresqlInstancePasswordKey = "PGPASS"
+	// PostgresqlInstanceUsernameKey is the secret key that holds a given CSQLP instance's username.
+	PostgresqlInstanceUsernameKey = "PGUSER"
+	// PostgresqlInstanceUsernameValue is the fixed value of the secret key that holds a given CSQLP instance's username.
+	PostgresqlInstanceUsernameValue = "postgres"
 )
-
-// RandomStringWithLength returns a random alphanumeric string with the specified length.
-func (f *Framework) RandomStringWithLength(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = randomLetters[rand.Intn(len(randomLetters))]
-	}
-	return string(b)
-}

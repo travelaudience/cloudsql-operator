@@ -20,7 +20,9 @@ import (
 	"fmt"
 
 	cloudsqladmin "google.golang.org/api/sqladmin/v1beta4"
+	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -33,7 +35,10 @@ import (
 	v1alpha1listers "github.com/travelaudience/cloudsql-postgres-operator/pkg/client/listers/cloudsql/v1alpha1"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/configuration"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/crds"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/util/google"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/util/pointers"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/util/strings"
 )
 
 const (
@@ -41,6 +46,10 @@ const (
 	postgresqlInstanceControllerName = "postgresqlinstance-controller"
 	// postgresqlInstanceControllerThreadiness is the number of workers controller for PostgresqlInstance resource will use to process items from its work queue.
 	postgresqlInstanceControllerThreadiness = 1
+	// databaseInstancePasswordLength is the length of the random password generated for every CSQLP instance.
+	passwordLength = 36
+	// passwordAlphabet is the alphabet used to generate the random password for CSQLP instances.
+	passwordAlphabet = `abcdefghijklmnopqrstuvwxyz0123456789~!@#$%^&*()_-+={[}]|\:;"'<,>.?/`
 )
 
 // PostgresqlInstanceController is the controller for PostgresqlInstance resources.
@@ -49,10 +58,12 @@ type PostgresqlInstanceController struct {
 	*genericController
 	// cloudsqlClient is a client for the Cloud SQL Admin API.
 	cloudsqlClient *cloudsqladmin.Service
-	// kubeClient is a client to the Kubernetes API.
-	kubeClient kubernetes.Interface
 	// er is an EventRecorder through which we can emit events associated with PostgresqlInstance resources.
 	er record.EventRecorder
+	// kubeClient is a client to the Kubernetes API.
+	kubeClient kubernetes.Interface
+	// namespace is the namespace where cloudsql-postgres-operator is deployed.
+	namespace string
 	// postgresqlInstanceLister is a lister for PostgresqlInstance resources.
 	postgresqlInstanceLister v1alpha1listers.PostgresqlInstanceLister
 	// projectID is the ID of the GCP project where cloudsql-postgres-operator is managing CSQLP instances.
@@ -67,8 +78,9 @@ func NewPostgresqlInstanceController(config configuration.Configuration, kubeCli
 	c := &PostgresqlInstanceController{
 		cloudsqlClient:           cloudsqlClient,
 		genericController:        newGenericController(postgresqlInstanceControllerName, postgresqlInstanceControllerThreadiness),
-		kubeClient:               kubeClient,
 		er:                       er,
+		kubeClient:               kubeClient,
+		namespace:                config.Cluster.Namespace,
 		postgresqlInstanceLister: postgresqlInstanceInformer.Lister(),
 		projectID:                config.GCP.ProjectID,
 		selfClient:               selfClient,
@@ -182,6 +194,27 @@ func (c *PostgresqlInstanceController) processQueueItem(key string) error {
 		return nil
 	}
 
+	// Create the secret associated with the current PostgresqlInstance resource already exists, if necessary.
+	s, err := c.kubeClient.CoreV1().Secrets(c.namespace).Get(p.Name, metav1.GetOptions{})
+	if err != nil {
+		// If we've got an error otherr than "404 NOT FOUND", we stop processing and propagate it.
+		if !kubeerrors.IsNotFound(err) {
+			c.logger.Debugf("failed to check if the secret associated with %q already exists: %v", p.Name, err)
+			return err
+		}
+		// At this point we know that the secret associated with the current PostgresqlInstance resource must be created.
+		if s, err = c.createInstanceSecret(p); err != nil {
+			c.logger.Debugf("failed to create the secret associated with %q: %v", p.Name, err)
+			return err
+		}
+	}
+	// Check whether we need to generate and set a password for the CSQLP instance.
+	if password, exists := s.Data[constants.PostgresqlInstancePasswordKey]; !exists || len(password) == 0 {
+		if err := c.setInstancePassword(p, s); err != nil {
+			c.logger.Debugf("failed to set instance password for %q", p.Name)
+			return err
+		}
+	}
 	return nil
 }
 
@@ -214,6 +247,29 @@ func (c *PostgresqlInstanceController) createInstance(postgresqlInstance *v1alph
 	return c.cloudsqlClient.Instances.Get(c.projectID, postgresqlInstance.Spec.Name).Do()
 }
 
+// createInstanceSecret creates the (initially empty) secret associated with the specified PostgresqlInstance resource.
+func (c *PostgresqlInstanceController) createInstanceSecret(postgresqlInstance *v1alpha1api.PostgresqlInstance) (*corev1.Secret, error) {
+	return c.kubeClient.CoreV1().Secrets(c.namespace).Create(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				constants.LabelAppKey: constants.ApplicationName,
+			},
+			Name:      postgresqlInstance.Name,
+			Namespace: c.namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         v1alpha1api.SchemeGroupVersion.String(),
+					Kind:               crds.PostgresqlInstanceKind,
+					Name:               postgresqlInstance.Name,
+					UID:                postgresqlInstance.UID,
+					Controller:         pointers.NewBool(true),
+					BlockOwnerDeletion: pointers.NewBool(true),
+				},
+			},
+		},
+	})
+}
+
 // deleteInstance attempts to delete the CSQLP instance associated with the specified PostgresqlInstance resource.
 func (c *PostgresqlInstanceController) deleteInstance(postgresqlInstance *v1alpha1api.PostgresqlInstance) error {
 	c.logger.Debugf("checking whether instance %q needs to be deleted", postgresqlInstance.Spec.Name)
@@ -232,4 +288,27 @@ func (c *PostgresqlInstanceController) deleteInstance(postgresqlInstance *v1alph
 	}
 	c.logger.Debugf("instance %q has been deleted", postgresqlInstance.Spec.Name)
 	return nil
+}
+
+// setInstancePassword generates a random password for the CSQLP instance's "postgres" user, sets it on the CSQLP instance and writes it to the specified secret.
+func (c *PostgresqlInstanceController) setInstancePassword(postgresqlInstance *v1alpha1api.PostgresqlInstance, secret *corev1.Secret) error {
+	c.logger.Debugf("setting the %q user's password for instance %q", constants.PostgresqlInstanceUsernameValue, postgresqlInstance.Spec.Name)
+	// Create a User object representing the "postgres" user and having a randomly-generated password.
+	u := &cloudsqladmin.User{
+		Name:     constants.PostgresqlInstanceUsernameValue,
+		Password: strings.RandomStringWithLength(passwordLength, passwordAlphabet),
+	}
+	// Update the "postgres" user with the generated password.
+	_, err := c.cloudsqlClient.Users.Update(c.projectID, postgresqlInstance.Spec.Name, u.Name, u).Do()
+	if err != nil {
+		return err
+	}
+	// Update the secret with the "postgres" user's username and password.
+	if secret.StringData == nil {
+		secret.StringData = make(map[string]string, 2)
+	}
+	secret.StringData[constants.PostgresqlInstanceUsernameKey] = u.Name
+	secret.StringData[constants.PostgresqlInstancePasswordKey] = u.Password
+	_, err = c.kubeClient.CoreV1().Secrets(secret.Namespace).Update(secret)
+	return err
 }

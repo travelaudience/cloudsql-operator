@@ -50,7 +50,7 @@ rules:
   - create
   - get
   - update
-# Allow for creating and reading secrets.
+# Allow for creating, reading and updating secrets.
 - apiGroups:
   - ""
   resources:
@@ -58,6 +58,7 @@ rules:
   verbs:
   - create
   - get
+  - update
 # Allow for reading, listing, updating and watching PostgresqlInstance resources.
 - apiGroups:
   - cloudsql.travelaudience.com
@@ -68,6 +69,13 @@ rules:
   - list
   - update
   - watch
+# Allow for updating a PostgresqlInstance resource's finalizers.
+- apiGroups:
+  - cloudsql.travelaudience.com
+  resources:
+  - postgresqlinstances/finalizers
+  verbs:
+  - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

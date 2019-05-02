@@ -23,6 +23,7 @@ import (
 
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
+	stringutils "github.com/travelaudience/cloudsql-postgres-operator/pkg/util/strings"
 )
 
 const (
@@ -32,11 +33,13 @@ const (
 	postgresqlInstanceSpecNamePrefix = "cloudsql-postgres-operator-"
 	// postgresqlInstanceSpecNameSuffixLength is the length of the suffix used when generating random values for the ".spec.name" field of PostgresqlInstance objects.
 	postgresqlInstanceSpecNameSuffixLength = 6
+	// postgresqlInstanceSpecNameSuffixAlphabet is the set of characters used when generating random values for the ".spec.name" field of PostgresqlInstance objects.
+	postgresqlInstanceSpecNameSuffixAlphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
 )
 
 // NewRandomPostgresqlInstanceSpecName returns a random string that can be used as the value of ".spec.name" for a PostgresqlInstance resource.
 func (f *Framework) NewRandomPostgresqlInstanceSpecName() string {
-	return postgresqlInstanceSpecNamePrefix + f.RandomStringWithLength(postgresqlInstanceSpecNameSuffixLength)
+	return postgresqlInstanceSpecNamePrefix + stringutils.RandomStringWithLength(postgresqlInstanceSpecNameSuffixLength, postgresqlInstanceSpecNameSuffixAlphabet)
 }
 
 // DeletePostgresqlInstanceByName deletes the provided PostgresqlInstance resource.
