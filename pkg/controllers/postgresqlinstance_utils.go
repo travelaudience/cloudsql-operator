@@ -17,6 +17,9 @@ limitations under the License.
 package controllers
 
 import (
+	"reflect"
+
+	log "github.com/sirupsen/logrus"
 	cloudsqladmin "google.golang.org/api/sqladmin/v1beta4"
 
 	v1alpha1api "github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
@@ -25,53 +28,130 @@ import (
 
 // buildDatabaseInstance builds the DatabaseInstance object that corresponds to the specified PostgresqlInstance resource.
 func buildDatabaseInstance(postgresqlInstance *v1alpha1api.PostgresqlInstance) *cloudsqladmin.DatabaseInstance {
-	// Create the base DatabaseInstance object.
-	instance := &cloudsqladmin.DatabaseInstance{
-		Settings: &cloudsqladmin.Settings{
-			BackupConfiguration: &cloudsqladmin.BackupConfiguration{},
-			IpConfiguration:     &cloudsqladmin.IpConfiguration{},
-			LocationPreference:  &cloudsqladmin.LocationPreference{},
-			MaintenanceWindow:   &cloudsqladmin.MaintenanceWindow{},
+	return &cloudsqladmin.DatabaseInstance{
+		DatabaseVersion: postgresqlInstance.Spec.Version.APIValue(),
+		Name:            postgresqlInstance.Spec.Name,
+		Region:          *postgresqlInstance.Spec.Location.Region,
+		Settings:        buildDatabaseInstanceSettings(postgresqlInstance),
+	}
+}
+
+// buildDatabaseInstanceSettings builds the Settings field of the DatabaseInstance object that corresponds to the specified PostgresqlInstance resource.
+func buildDatabaseInstanceSettings(postgresqlInstance *v1alpha1api.PostgresqlInstance) *cloudsqladmin.Settings {
+	r := &cloudsqladmin.Settings{
+		AvailabilityType: postgresqlInstance.Spec.Availability.Type.APIValue(),
+		BackupConfiguration: &cloudsqladmin.BackupConfiguration{
+			Enabled:   *postgresqlInstance.Spec.Backups.Daily.Enabled,
+			StartTime: *postgresqlInstance.Spec.Backups.Daily.StartTime,
 		},
+		DatabaseFlags:  postgresqlInstance.Spec.Flags.APIValue(),
+		DataDiskSizeGb: int64(*postgresqlInstance.Spec.Resources.Disk.SizeMinimumGb),
+		DataDiskType:   postgresqlInstance.Spec.Resources.Disk.Type.APIValue(),
+		IpConfiguration: &cloudsqladmin.IpConfiguration{
+			AuthorizedNetworks: postgresqlInstance.Spec.Networking.PublicIP.AuthorizedNetworks.APIValue(),
+			Ipv4Enabled:        *postgresqlInstance.Spec.Networking.PublicIP.Enabled,
+		},
+		LocationPreference: &cloudsqladmin.LocationPreference{
+			Zone: postgresqlInstance.Spec.Location.Zone.APIValue(),
+		},
+		Tier:       *postgresqlInstance.Spec.Resources.InstanceType,
+		UserLabels: postgresqlInstance.Spec.Labels,
 	}
-	// Observe ".spec.availability".
-	instance.Settings.AvailabilityType = postgresqlInstance.Spec.Availability.Type.APIValue()
-	// Observe ".spec.backups".
-	instance.Settings.BackupConfiguration.Enabled = *postgresqlInstance.Spec.Backups.Daily.Enabled
-	instance.Settings.BackupConfiguration.StartTime = *postgresqlInstance.Spec.Backups.Daily.StartTime
-	// Observe ".spec.flags".
-	instance.Settings.DatabaseFlags = postgresqlInstance.Spec.Flags.APIValue()
-	// Observe ".spec.labels".
-	instance.Settings.UserLabels = postgresqlInstance.Spec.Labels
-	// Observe ".spec.location".
-	instance.Region = *postgresqlInstance.Spec.Location.Region
-	instance.Settings.LocationPreference.Zone = postgresqlInstance.Spec.Location.Zone.APIValue()
-	// Observe ".spec.maintenance".
-	if *postgresqlInstance.Spec.Maintenance.Day != v1alpha1api.PostgresqlInstanceSpecMaintenanceDayAny {
-		instance.Settings.MaintenanceWindow.Day = postgresqlInstance.Spec.Maintenance.Day.APIValue()
-		instance.Settings.MaintenanceWindow.Hour = postgresqlInstance.Spec.Maintenance.Hour.APIValue()
-	}
-	// Observe ".spec.name".
-	instance.Name = postgresqlInstance.Spec.Name
-	// Observe ".spec.network".
-	if *postgresqlInstance.Spec.Networking.PrivateIP.Enabled {
-		instance.Settings.IpConfiguration.PrivateNetwork = *postgresqlInstance.Spec.Networking.PrivateIP.Network
-	}
-	instance.Settings.IpConfiguration.Ipv4Enabled = *postgresqlInstance.Spec.Networking.PublicIP.Enabled
-	instance.Settings.IpConfiguration.AuthorizedNetworks = postgresqlInstance.Spec.Networking.PublicIP.AuthorizedNetworks.APIValue()
-	// Observe ".spec.resources".
-	if *postgresqlInstance.Spec.Resources.Disk.SizeMaximumGb == *postgresqlInstance.Spec.Resources.Disk.SizeMinimumGb {
-		instance.Settings.StorageAutoResize = pointers.NewBool(false)
-		instance.Settings.StorageAutoResizeLimit = 0
+	if *postgresqlInstance.Spec.Maintenance.Day == v1alpha1api.PostgresqlInstanceSpecMaintenanceDayAny {
+		r.MaintenanceWindow = &cloudsqladmin.MaintenanceWindow{}
 	} else {
-		instance.Settings.StorageAutoResize = pointers.NewBool(true)
-		instance.Settings.StorageAutoResizeLimit = int64(*postgresqlInstance.Spec.Resources.Disk.SizeMaximumGb)
+		r.MaintenanceWindow = &cloudsqladmin.MaintenanceWindow{
+			Day:  postgresqlInstance.Spec.Maintenance.Day.APIValue(),
+			Hour: postgresqlInstance.Spec.Maintenance.Hour.APIValue(),
+		}
 	}
-	instance.Settings.DataDiskSizeGb = int64(*postgresqlInstance.Spec.Resources.Disk.SizeMinimumGb)
-	instance.Settings.DataDiskType = postgresqlInstance.Spec.Resources.Disk.Type.APIValue()
-	instance.Settings.Tier = *postgresqlInstance.Spec.Resources.InstanceType
-	// Observe ".spec.version".
-	instance.DatabaseVersion = postgresqlInstance.Spec.Version.APIValue()
-	// Return the DatabaseInstance object.
-	return instance
+	if *postgresqlInstance.Spec.Networking.PrivateIP.Enabled {
+		r.IpConfiguration.PrivateNetwork = *postgresqlInstance.Spec.Networking.PrivateIP.Network
+	}
+	if *postgresqlInstance.Spec.Resources.Disk.SizeMaximumGb == *postgresqlInstance.Spec.Resources.Disk.SizeMinimumGb {
+		r.StorageAutoResize = pointers.NewBool(false)
+		r.StorageAutoResizeLimit = 0
+	} else {
+		r.StorageAutoResize = pointers.NewBool(true)
+		r.StorageAutoResizeLimit = int64(*postgresqlInstance.Spec.Resources.Disk.SizeMaximumGb)
+	}
+	return r
+}
+
+// updateDatabaseInstanceSettings updates the provided DatabaseInstance object according to the provided PostgresqlInstance resource.
+func updateDatabaseInstanceSettings(postgresqlInstance *v1alpha1api.PostgresqlInstance, databaseInstance *cloudsqladmin.DatabaseInstance) (mustUpdate bool) {
+	// Compute the desired settings based on the provided PostgresqlInstance resource.
+	desiredSettings := buildDatabaseInstanceSettings(postgresqlInstance)
+	// Update each field of the provided CSQLP instance that differs from the desired value.
+	if databaseInstance.Settings.AvailabilityType != desiredSettings.AvailabilityType {
+		log.Debug(".settings.availabilityType must be updated")
+		databaseInstance.Settings.AvailabilityType = desiredSettings.AvailabilityType
+		mustUpdate = true
+	}
+	if databaseInstance.Settings.BackupConfiguration.Enabled != desiredSettings.BackupConfiguration.Enabled {
+		log.Debug(".settings.backupConfiguration.enabled must be updated")
+		databaseInstance.Settings.BackupConfiguration.Enabled = desiredSettings.BackupConfiguration.Enabled
+		mustUpdate = true
+	}
+	if databaseInstance.Settings.BackupConfiguration.StartTime != desiredSettings.BackupConfiguration.StartTime {
+		log.Debug(".settings.backupConfiguration.startTime must be updated")
+		databaseInstance.Settings.BackupConfiguration.StartTime = desiredSettings.BackupConfiguration.StartTime
+		mustUpdate = true
+	}
+	if !reflect.DeepEqual(databaseInstance.Settings.DatabaseFlags, desiredSettings.DatabaseFlags) {
+		log.Debug(".settings.databaseFlags must be updated")
+		databaseInstance.Settings.DatabaseFlags = desiredSettings.DatabaseFlags
+		mustUpdate = true
+	}
+	if databaseInstance.Settings.DataDiskSizeGb != desiredSettings.DataDiskSizeGb {
+		log.Debug(".settings.dataDiskSizeGb must be updated")
+		databaseInstance.Settings.DataDiskSizeGb = desiredSettings.DataDiskSizeGb
+		mustUpdate = true
+	}
+	if !reflect.DeepEqual(databaseInstance.Settings.IpConfiguration.AuthorizedNetworks, desiredSettings.IpConfiguration.AuthorizedNetworks) {
+		log.Debug(".settings.ipConfiguration.authorizedNetworks must be updated")
+		databaseInstance.Settings.IpConfiguration.AuthorizedNetworks = desiredSettings.IpConfiguration.AuthorizedNetworks
+		mustUpdate = true
+	}
+	if databaseInstance.Settings.IpConfiguration.Ipv4Enabled != desiredSettings.IpConfiguration.Ipv4Enabled {
+		log.Debug(".settings.ipConfiguration.ipv4Enabled must be updated")
+		databaseInstance.Settings.IpConfiguration.Ipv4Enabled = desiredSettings.IpConfiguration.Ipv4Enabled
+		mustUpdate = true
+	}
+	if databaseInstance.Settings.IpConfiguration.PrivateNetwork != desiredSettings.IpConfiguration.PrivateNetwork {
+		log.Debug(".settings.ipConfiguration.privateNetwork must be updated")
+		databaseInstance.Settings.IpConfiguration.PrivateNetwork = desiredSettings.IpConfiguration.PrivateNetwork
+		mustUpdate = true
+	}
+	if *postgresqlInstance.Spec.Location.Zone != v1alpha1api.PostgresqlInstanceSpecLocationZoneAny && databaseInstance.Settings.LocationPreference.Zone != desiredSettings.LocationPreference.Zone {
+		log.Debug(".settings.locationPreference.zone must be updated")
+		databaseInstance.Settings.LocationPreference.Zone = desiredSettings.LocationPreference.Zone
+		mustUpdate = true
+	}
+	if databaseInstance.Settings.MaintenanceWindow.Day != desiredSettings.MaintenanceWindow.Day {
+		log.Debug(".settings.maintenanceWindow.day must be updated")
+		databaseInstance.Settings.MaintenanceWindow.Day = desiredSettings.MaintenanceWindow.Day
+		mustUpdate = true
+	}
+	if databaseInstance.Settings.MaintenanceWindow.Hour != desiredSettings.MaintenanceWindow.Hour {
+		log.Debug(".settings.maintenanceWindow.hour must be updated")
+		databaseInstance.Settings.MaintenanceWindow.Hour = desiredSettings.MaintenanceWindow.Hour
+		mustUpdate = true
+	}
+	if *databaseInstance.Settings.StorageAutoResize != *desiredSettings.StorageAutoResize {
+		log.Debug(".settings.storageAutoResize must be updated")
+		*databaseInstance.Settings.StorageAutoResize = *desiredSettings.StorageAutoResize
+		mustUpdate = true
+	}
+	if databaseInstance.Settings.StorageAutoResizeLimit != desiredSettings.StorageAutoResizeLimit {
+		log.Debug(".settings.storageAutoResizeLimit must be updated")
+		databaseInstance.Settings.StorageAutoResizeLimit = desiredSettings.StorageAutoResizeLimit
+		mustUpdate = true
+	}
+	if databaseInstance.Settings.Tier != desiredSettings.Tier {
+		log.Debug(".settings.tier must be updated")
+		databaseInstance.Settings.Tier = desiredSettings.Tier
+		mustUpdate = true
+	}
+	return mustUpdate
 }

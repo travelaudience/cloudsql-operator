@@ -215,6 +215,12 @@ func (c *PostgresqlInstanceController) processQueueItem(key string) error {
 			return err
 		}
 	}
+
+	// Update the CSQLP instance's settings if necessary.
+	instance, err = c.maybeUpdateInstance(p, instance)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -288,6 +294,40 @@ func (c *PostgresqlInstanceController) deleteInstance(postgresqlInstance *v1alph
 	}
 	c.logger.Debugf("instance %q has been deleted", postgresqlInstance.Spec.Name)
 	return nil
+}
+
+// maybeUpdateInstance checks whether the settings for the CSQLP instance must be updated, and updates it if necessary.
+func (c *PostgresqlInstanceController) maybeUpdateInstance(postgresqlInstance *v1alpha1api.PostgresqlInstance, databaseInstance *cloudsqladmin.DatabaseInstance) (*cloudsqladmin.DatabaseInstance, error) {
+	c.logger.Debugf("checking whether the settings for instance %q must be updated", postgresqlInstance.Spec.Name)
+	// Update the CSQLP instance's settings according to the PostgresqlInstance resource.
+	mustUpdate := updateDatabaseInstanceSettings(postgresqlInstance, databaseInstance)
+	if !mustUpdate {
+		// No differences have been detected, so there is nothing to do.
+		c.logger.Debugf("the settings for instance %q are up-to-date", postgresqlInstance.Spec.Name)
+		return databaseInstance, nil
+	}
+	// At this point we know we have to update the CSQLP instance's settings.
+	c.logger.Debugf("the settings for instance %q must be updated", postgresqlInstance.Spec.Name)
+	_, err := c.cloudsqlClient.Instances.Update(c.projectID, databaseInstance.Name, databaseInstance).Do()
+	if err != nil {
+		if google.IsConflict(err) {
+			// The Cloud SQL Admin API is reporting a conflict.
+			// This most probably means that an update is already in progress, in which case we must wait.
+			// Hence, we log but do not propagate the error, waiting until the next iteration of the controller to actually perform the update.
+			c.logger.Errorf("conflict reported while trying to update the settings for instance %q - maybe another update is currently in progress?", postgresqlInstance.Spec.Name)
+			return nil, nil
+		}
+		if google.IsBadRequest(err) {
+			// We've been told that the instance's specification is invalid.
+			// This most probably means that the user has specified an invalid value for some field under ".spec".
+			// Hence, we log but do not propagate the error, since subsequent attempts to create the instance are likely to fail as well until ".spec" is fixed.
+			c.logger.Errorf("the settings for instance %q are invalid: %v", postgresqlInstance.Spec.Name, err)
+			return nil, nil
+		}
+		// The Cloud SQL Admin API returned a different error, which we propagate so that creation may be retried.
+		return nil, err
+	}
+	return c.cloudsqlClient.Instances.Get(c.projectID, postgresqlInstance.Spec.Name).Do()
 }
 
 // setInstancePassword generates a random password for the CSQLP instance's "postgres" user, sets it on the CSQLP instance and writes it to the specified secret.

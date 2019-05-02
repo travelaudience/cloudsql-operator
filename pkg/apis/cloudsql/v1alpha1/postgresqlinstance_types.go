@@ -25,6 +25,9 @@ import (
 )
 
 const (
+	// aclEntryKind is the value of the ".kind" field of each element of a CSQLP instance's ".settings.ipConfiguration.authorizedNetworks" field, as returned by the Cloud SQL Admin API.
+	// We explicitly set it in the "APIValue()" method in order to make comparisons easier when updating a CSQLP instance.
+	aclEntryKind = "sql#aclEntry"
 	// Any represents an arbitrary choice of a value.
 	Any = "Any"
 	// False represents the "false" boolean value.
@@ -182,7 +185,10 @@ type PostgresqlInstanceSpecFlags []string
 
 // APIValue returns the Cloud SQL Admin API value that represents the current set of database flags.
 func (v *PostgresqlInstanceSpecFlags) APIValue() []*cloudsqladmin.DatabaseFlags {
-	f := make([]*cloudsqladmin.DatabaseFlags, 0)
+	if len(*v) == 0 {
+		return nil
+	}
+	f := make([]*cloudsqladmin.DatabaseFlags, 0, len(*v))
 	for _, flag := range *v {
 		parts := strings.Split(flag, "=")
 		if len(parts) != 2 {
@@ -312,9 +318,10 @@ type PostgresqlInstanceSpecNetworkingPublicIPAuthorizedNetworkList []PostgresqlI
 
 // APIValue returns the Cloud SQL Admin API value that represents the current list of authorized networks.
 func (v *PostgresqlInstanceSpecNetworkingPublicIPAuthorizedNetworkList) APIValue() []*cloudsqladmin.AclEntry {
-	r := make([]*cloudsqladmin.AclEntry, len(*v))
+	r := make([]*cloudsqladmin.AclEntry, 0, len(*v))
 	for _, an := range *v {
 		ae := &cloudsqladmin.AclEntry{
+			Kind:  aclEntryKind,
 			Value: an.Cidr,
 		}
 		if an.Name != nil {
