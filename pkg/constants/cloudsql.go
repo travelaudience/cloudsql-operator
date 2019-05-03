@@ -21,4 +21,6 @@ const (
 	DatabaseInstanceActivationPolicyAlways = "ALWAYS"
 	// DatabaseInstanceStateRunnable is the state of a running, healthy CSQLP instance.
 	DatabaseInstanceStateRunnable = "RUNNABLE"
+	// OperationStatusDone is the status of an operation that has terminated.
+	OperationStatusDone = "DONE"
 )

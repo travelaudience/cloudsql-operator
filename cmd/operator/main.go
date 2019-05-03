@@ -40,6 +40,7 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/admission"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
 	selfclient "github.com/travelaudience/cloudsql-postgres-operator/pkg/client/clientset/versioned"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/client/informers/externalversions"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/configuration"
@@ -135,8 +136,9 @@ func main() {
 
 	// Create an event recorder so we can emit events during leader election and afterwards.
 	eb := record.NewBroadcaster()
-	eb.StartLogging(log.Debugf)
+	eb.StartLogging(log.Tracef)
 	eb.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
+	v1alpha1.AddToScheme(scheme.Scheme)
 	er := eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: constants.ApplicationName})
 
 	// Compute the identity of the current instance of the application based on the current hostname.

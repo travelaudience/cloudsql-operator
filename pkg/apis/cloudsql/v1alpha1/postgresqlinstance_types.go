@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	cloudsqladmin "google.golang.org/api/sqladmin/v1beta4"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -82,6 +83,15 @@ const (
 const (
 	// PostgresqlInstanceSpecVersion96 represents the "POSTGRES_9_6" version of CSQLP instances.
 	PostgresqlInstanceSpecVersion96 = PostgresqlInstanceSpecVersion("9.6")
+)
+
+const (
+	// PostgresqlInstanceStatusConditionTypeCreated indicates that the CSQLP instance represented by a given PostgresqlInstance resource has been created.
+	PostgresqlInstanceStatusConditionTypeCreated = PostgresqlInstanceStatusConditionType("Created")
+	// PostgresqlInstanceStatusConditionTypeReady indicates that the CSQLP instance represented by a given PostgresqlInstance resource is in a ready state.
+	PostgresqlInstanceStatusConditionTypeReady = PostgresqlInstanceStatusConditionType("Ready")
+	// PostgresqlInstanceStatusConditionTypeUpToDate indicates that the settings for the CSQLP instance represented by a given PostgresqlInstance resource are up-to-date.
+	PostgresqlInstanceStatusConditionTypeUpToDate = PostgresqlInstanceStatusConditionType("UpToDate")
 )
 
 // +genclient
@@ -267,7 +277,7 @@ type PostgresqlInstanceSpecMaintenanceHour string
 
 // APIValue returns the Cloud SQL Admin API value that represents the current maintenance hour.
 func (v *PostgresqlInstanceSpecMaintenanceHour) APIValue() int64 {
-	i, err := strconv.ParseInt(strings.TrimPrefix(string(*v), ":00"), 10, 64)
+	i, err := strconv.ParseInt(strings.TrimSuffix(string(*v), ":00"), 10, 64)
 	if err != nil {
 		return 0
 	}
@@ -383,4 +393,27 @@ func (v *PostgresqlInstanceSpecVersion) APIValue() string {
 
 // PostgresqlInstanceStatus represents the status of a CSQLP instance.
 type PostgresqlInstanceStatus struct {
+	// Conditions is the set of conditions associated with the current PostgresqlInstance resource.
+	// +optional
+	Conditions []PostgresqlInstanceStatusCondition `json:"conditions,omitempty"`
 }
+
+// PostgresqlInstanceStatusCondition represents a condition associated with a PostgresqlInstance resource.
+type PostgresqlInstanceStatusCondition struct {
+	// LastTransitionTime is the timestamp corresponding to the last status change of this condition.
+	// +optional
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
+	// Message is a human readable description of the details of the condition's last transition.
+	// +optional
+	Message string `json:"message,omitempty"`
+	// Reason is a brief machine readable explanation for the condition's last transition.
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// Status is the status of the condition (one of "True", "False" or "Unknown").
+	Status corev1.ConditionStatus `json:"status"`
+	// Type is the type of the condition.
+	Type PostgresqlInstanceStatusConditionType `json:"type"`
+}
+
+// PostgresqlInstanceStatusConditionType represents the type of a condition associated with a PostgresqlInstance resource.
+type PostgresqlInstanceStatusConditionType string

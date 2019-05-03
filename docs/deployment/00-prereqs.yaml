@@ -59,7 +59,7 @@ rules:
   - create
   - get
   - update
-# Allow for reading, listing, updating and watching PostgresqlInstance resources.
+# Allow for reading, listing, patching and watching PostgresqlInstance resources.
 - apiGroups:
   - cloudsql.travelaudience.com
   resources:
@@ -67,7 +67,7 @@ rules:
   verbs:
   - get
   - list
-  - update
+  - patch
   - watch
 # Allow for updating a PostgresqlInstance resource's finalizers.
 - apiGroups:
@@ -76,6 +76,13 @@ rules:
   - postgresqlinstances/finalizers
   verbs:
   - update
+# Allow for patching a PostgresqlInstance resource's status.
+- apiGroups:
+  - cloudsql.travelaudience.com
+  resources:
+  - postgresqlinstances/status
+  verbs:
+  - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

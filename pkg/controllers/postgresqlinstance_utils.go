@@ -17,12 +17,20 @@ limitations under the License.
 package controllers
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
+	"time"
 
-	log "github.com/sirupsen/logrus"
 	cloudsqladmin "google.golang.org/api/sqladmin/v1beta4"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	v1alpha1api "github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
+
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/util/pointers"
 )
 
@@ -78,80 +86,173 @@ func buildDatabaseInstanceSettings(postgresqlInstance *v1alpha1api.PostgresqlIns
 	return r
 }
 
+// isOperationInProgressOrFailed indicates whether the last operation performed on the CSQLP instance associated with the provided PostgresqlInstance resource is still in progress, or has failed.
+func (c *PostgresqlInstanceController) isOperationInProgressOrFailed(postgresqlInstance *v1alpha1api.PostgresqlInstance) (bool, string, string, string, string, error) {
+	// Grab the list of operations for the CSQLP instance.
+	ops, err := c.cloudsqlClient.Operations.List(c.projectID, postgresqlInstance.Spec.Name).Do()
+	if err != nil {
+		return false, "", "", "", "", err
+	}
+	// If there are no operations, there's nothing else to check.
+	if len(ops.Items) == 0 {
+		return false, "", "", "", "", nil
+	}
+	// Operations are sorted by reverse chronological order, so the last (or current) operation is the first item in the slice.
+	lastOp := ops.Items[0]
+	// If the last operation's status is "DONE" and there are no errors, there's nothing else to check.
+	if lastOp.Status == constants.OperationStatusDone && (lastOp.Error == nil || len(lastOp.Error.Errors) == 0) {
+		return false, lastOp.Name, lastOp.OperationType, lastOp.Status, "", nil
+	}
+	// Check whether there are any errors, and, in case there are, build the error message by concatenating them.
+	errorMessage := ""
+	if lastOp.Error != nil && len(lastOp.Error.Errors) > 0 {
+		for _, err := range lastOp.Error.Errors {
+			errorMessage += fmt.Sprintf("%s; %q", err.Code, err.Message)
+		}
+	}
+	return true, lastOp.Name, lastOp.OperationType, lastOp.Status, errorMessage, nil
+}
+
 // updateDatabaseInstanceSettings updates the provided DatabaseInstance object according to the provided PostgresqlInstance resource.
-func updateDatabaseInstanceSettings(postgresqlInstance *v1alpha1api.PostgresqlInstance, databaseInstance *cloudsqladmin.DatabaseInstance) (mustUpdate bool) {
+func (c *PostgresqlInstanceController) updateDatabaseInstanceSettings(postgresqlInstance *v1alpha1api.PostgresqlInstance, databaseInstance *cloudsqladmin.DatabaseInstance) (mustUpdate bool) {
 	// Compute the desired settings based on the provided PostgresqlInstance resource.
 	desiredSettings := buildDatabaseInstanceSettings(postgresqlInstance)
 	// Update each field of the provided CSQLP instance that differs from the desired value.
 	if databaseInstance.Settings.AvailabilityType != desiredSettings.AvailabilityType {
-		log.Debug(".settings.availabilityType must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.availabilityType must be updated")
 		databaseInstance.Settings.AvailabilityType = desiredSettings.AvailabilityType
 		mustUpdate = true
 	}
 	if databaseInstance.Settings.BackupConfiguration.Enabled != desiredSettings.BackupConfiguration.Enabled {
-		log.Debug(".settings.backupConfiguration.enabled must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.backupConfiguration.enabled must be updated")
 		databaseInstance.Settings.BackupConfiguration.Enabled = desiredSettings.BackupConfiguration.Enabled
 		mustUpdate = true
 	}
 	if databaseInstance.Settings.BackupConfiguration.StartTime != desiredSettings.BackupConfiguration.StartTime {
-		log.Debug(".settings.backupConfiguration.startTime must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.backupConfiguration.startTime must be updated")
 		databaseInstance.Settings.BackupConfiguration.StartTime = desiredSettings.BackupConfiguration.StartTime
 		mustUpdate = true
 	}
 	if !reflect.DeepEqual(databaseInstance.Settings.DatabaseFlags, desiredSettings.DatabaseFlags) {
-		log.Debug(".settings.databaseFlags must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.databaseFlags must be updated")
 		databaseInstance.Settings.DatabaseFlags = desiredSettings.DatabaseFlags
 		mustUpdate = true
 	}
 	if databaseInstance.Settings.DataDiskSizeGb != desiredSettings.DataDiskSizeGb {
-		log.Debug(".settings.dataDiskSizeGb must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.dataDiskSizeGb must be updated")
 		databaseInstance.Settings.DataDiskSizeGb = desiredSettings.DataDiskSizeGb
 		mustUpdate = true
 	}
 	if !reflect.DeepEqual(databaseInstance.Settings.IpConfiguration.AuthorizedNetworks, desiredSettings.IpConfiguration.AuthorizedNetworks) {
-		log.Debug(".settings.ipConfiguration.authorizedNetworks must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.ipConfiguration.authorizedNetworks must be updated")
 		databaseInstance.Settings.IpConfiguration.AuthorizedNetworks = desiredSettings.IpConfiguration.AuthorizedNetworks
 		mustUpdate = true
 	}
 	if databaseInstance.Settings.IpConfiguration.Ipv4Enabled != desiredSettings.IpConfiguration.Ipv4Enabled {
-		log.Debug(".settings.ipConfiguration.ipv4Enabled must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.ipConfiguration.ipv4Enabled must be updated")
 		databaseInstance.Settings.IpConfiguration.Ipv4Enabled = desiredSettings.IpConfiguration.Ipv4Enabled
 		mustUpdate = true
 	}
 	if databaseInstance.Settings.IpConfiguration.PrivateNetwork != desiredSettings.IpConfiguration.PrivateNetwork {
-		log.Debug(".settings.ipConfiguration.privateNetwork must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.ipConfiguration.privateNetwork must be updated")
 		databaseInstance.Settings.IpConfiguration.PrivateNetwork = desiredSettings.IpConfiguration.PrivateNetwork
 		mustUpdate = true
 	}
 	if *postgresqlInstance.Spec.Location.Zone != v1alpha1api.PostgresqlInstanceSpecLocationZoneAny && databaseInstance.Settings.LocationPreference.Zone != desiredSettings.LocationPreference.Zone {
-		log.Debug(".settings.locationPreference.zone must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.locationPreference.zone must be updated")
 		databaseInstance.Settings.LocationPreference.Zone = desiredSettings.LocationPreference.Zone
 		mustUpdate = true
 	}
 	if databaseInstance.Settings.MaintenanceWindow.Day != desiredSettings.MaintenanceWindow.Day {
-		log.Debug(".settings.maintenanceWindow.day must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.maintenanceWindow.day must be updated")
 		databaseInstance.Settings.MaintenanceWindow.Day = desiredSettings.MaintenanceWindow.Day
 		mustUpdate = true
 	}
 	if databaseInstance.Settings.MaintenanceWindow.Hour != desiredSettings.MaintenanceWindow.Hour {
-		log.Debug(".settings.maintenanceWindow.hour must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.maintenanceWindow.hour must be updated")
 		databaseInstance.Settings.MaintenanceWindow.Hour = desiredSettings.MaintenanceWindow.Hour
 		mustUpdate = true
 	}
 	if *databaseInstance.Settings.StorageAutoResize != *desiredSettings.StorageAutoResize {
-		log.Debug(".settings.storageAutoResize must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.storageAutoResize must be updated")
 		*databaseInstance.Settings.StorageAutoResize = *desiredSettings.StorageAutoResize
 		mustUpdate = true
 	}
 	if databaseInstance.Settings.StorageAutoResizeLimit != desiredSettings.StorageAutoResizeLimit {
-		log.Debug(".settings.storageAutoResizeLimit must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.storageAutoResizeLimit must be updated")
 		databaseInstance.Settings.StorageAutoResizeLimit = desiredSettings.StorageAutoResizeLimit
 		mustUpdate = true
 	}
 	if databaseInstance.Settings.Tier != desiredSettings.Tier {
-		log.Debug(".settings.tier must be updated")
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.tier must be updated")
 		databaseInstance.Settings.Tier = desiredSettings.Tier
 		mustUpdate = true
 	}
+	if !reflect.DeepEqual(databaseInstance.Settings.UserLabels, desiredSettings.UserLabels) {
+		c.logger.WithField(logFieldName, postgresqlInstance.Name).Debug(".settings.userLabels must be updated")
+		databaseInstance.Settings.UserLabels = desiredSettings.UserLabels
+		mustUpdate = true
+	}
 	return mustUpdate
+}
+
+// patchPostgresqlInstance updates the provided PostgresqlInstance using patch semantics.
+// If there are no changes to be made, no patch is performed.
+func (c *PostgresqlInstanceController) patchPostgresqlInstance(oldObj, newObj *v1alpha1api.PostgresqlInstance, subresources ...string) (*v1alpha1api.PostgresqlInstance, error) {
+	// Return if there are no changes to be made.
+	if reflect.DeepEqual(oldObj, newObj) {
+		return newObj, nil
+	}
+	// Prepare the patch to apply based on the provided objects.
+	oldBytes, err := json.Marshal(oldObj)
+	if err != nil {
+		return nil, err
+	}
+	newBytes, err := json.Marshal(newObj)
+	if err != nil {
+		return nil, err
+	}
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldBytes, newBytes, &v1alpha1api.PostgresqlInstance{})
+	if err != nil {
+		return nil, err
+	}
+	// Apply the patch.
+	return c.selfClient.CloudsqlV1alpha1().PostgresqlInstances().Patch(oldObj.Name, types.MergePatchType, patchBytes, subresources...)
+}
+
+// patchPostgresqlInstanceStatus updates the status of the provided PostgresqlInstance using patch semantics.
+// If there are no changes to be made, no patch is performed.
+func (c *PostgresqlInstanceController) patchPostgresqlInstanceStatus(oldObj, newObj *v1alpha1api.PostgresqlInstance) (*v1alpha1api.PostgresqlInstance, error) {
+	return c.patchPostgresqlInstance(oldObj, newObj, "status")
+}
+
+// setPostgresqlInstanceCondition sets a condition on the provided PostgresqlInstance resource according to the following rules:
+// 1. If no condition of the provided type exists, the condition is inserted with its last transition time set to the current time.
+// 2. If a condition of the provided type and state exists, the condition is updated but its last transition time is not modified.
+// 3. If a condition of the provided type but different state exists, the condition is updated and its last transition time is set to the current time.
+func setPostgresqlInstanceCondition(postgresqlInstance *v1alpha1api.PostgresqlInstance, conditionType v1alpha1api.PostgresqlInstanceStatusConditionType, conditionStatus corev1.ConditionStatus, conditionReason string, conditionMessage string) {
+	// Create the new condition.
+	newCondition := v1alpha1api.PostgresqlInstanceStatusCondition{
+		LastTransitionTime: v1.NewTime(time.Now()),
+		Message:            conditionMessage,
+		Reason:             conditionReason,
+		Status:             conditionStatus,
+		Type:               conditionType,
+	}
+	// Search through existing conditions in order to understand if we need to insert the new condition or not.
+	for idx, cdn := range postgresqlInstance.Status.Conditions {
+		// If the current condition's type is different from the one we will be inserting, skip it.
+		if cdn.Type != newCondition.Type {
+			continue
+		}
+		// If the status is the same, we should not update the condition's last transition time.
+		if cdn.Status == newCondition.Status {
+			newCondition.LastTransitionTime = cdn.LastTransitionTime
+		}
+		// Overwrite the existing condition and return.
+		postgresqlInstance.Status.Conditions[idx] = newCondition
+		return
+	}
+	// At this point we know that there is no existing condition with this type, so we just append it to the set of conditions.
+	postgresqlInstance.Status.Conditions = append(postgresqlInstance.Status.Conditions, newCondition)
 }
