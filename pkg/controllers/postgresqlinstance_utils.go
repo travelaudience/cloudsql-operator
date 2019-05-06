@@ -36,12 +36,17 @@ import (
 
 // buildDatabaseInstance builds the DatabaseInstance object that corresponds to the specified PostgresqlInstance resource.
 func buildDatabaseInstance(postgresqlInstance *v1alpha1api.PostgresqlInstance) *cloudsqladmin.DatabaseInstance {
-	return &cloudsqladmin.DatabaseInstance{
+	// Build the DatabaseInstance object.
+	databaseInstance := &cloudsqladmin.DatabaseInstance{
 		DatabaseVersion: postgresqlInstance.Spec.Version.APIValue(),
 		Name:            postgresqlInstance.Spec.Name,
 		Region:          *postgresqlInstance.Spec.Location.Region,
 		Settings:        buildDatabaseInstanceSettings(postgresqlInstance),
 	}
+	// Force sending fields as required.
+	setForceSendFields(databaseInstance)
+	// Return the DatabaseInstance object.
+	return databaseInstance
 }
 
 // buildDatabaseInstanceSettings builds the Settings field of the DatabaseInstance object that corresponds to the specified PostgresqlInstance resource.
@@ -193,6 +198,8 @@ func (c *PostgresqlInstanceController) updateDatabaseInstanceSettings(postgresql
 		databaseInstance.Settings.UserLabels = desiredSettings.UserLabels
 		mustUpdate = true
 	}
+	// Force sending fields as required.
+	setForceSendFields(databaseInstance)
 	return mustUpdate
 }
 
@@ -226,6 +233,24 @@ func (c *PostgresqlInstanceController) patchPostgresqlInstanceStatus(oldObj, new
 	return c.patchPostgresqlInstance(oldObj, newObj, "status")
 }
 
+// setForceSendFields updates the provided DatabaseInstance object in order to force sending fields that would otherwise be omitted from the JSON representation due to the presence of the "omitempty" tag.
+// This is required in order to, for example, be able to explicitly set ".settings.ipConfiguration.ipv4Enabled" to "false" or ".settings.maintenanceWindow.hour" to "0".
+func setForceSendFields(databaseInstance *cloudsqladmin.DatabaseInstance) {
+	databaseInstance.Settings.BackupConfiguration.ForceSendFields = []string{
+		"Enabled",
+	}
+	databaseInstance.Settings.IpConfiguration.ForceSendFields = []string{
+		"Ipv4Enabled",
+		"PrivateNetwork",
+	}
+	databaseInstance.Settings.MaintenanceWindow.ForceSendFields = []string{
+		"Hour",
+	}
+	databaseInstance.Settings.ForceSendFields = []string{
+		"StorageAutoResizeLimit",
+	}
+}
+
 // setPostgresqlInstanceCondition sets a condition on the provided PostgresqlInstance resource according to the following rules:
 // 1. If no condition of the provided type exists, the condition is inserted with its last transition time set to the current time.
 // 2. If a condition of the provided type and state exists, the condition is updated but its last transition time is not modified.
@@ -255,4 +280,20 @@ func setPostgresqlInstanceCondition(postgresqlInstance *v1alpha1api.PostgresqlIn
 	}
 	// At this point we know that there is no existing condition with this type, so we just append it to the set of conditions.
 	postgresqlInstance.Status.Conditions = append(postgresqlInstance.Status.Conditions, newCondition)
+}
+
+// setPostgresqlInstanceIPs sets the IPs of associated with the provided CSQLP instance.
+func setPostgresqlInstanceIPs(postgresqlInstance *v1alpha1api.PostgresqlInstance, databaseInstance *cloudsqladmin.DatabaseInstance) {
+	for _, ip := range databaseInstance.IpAddresses {
+		if ip != nil {
+			switch ip.Type {
+			case constants.DatabaseInstanceIPAddressTypePrivate:
+				postgresqlInstance.Status.IPs.PrivateIP = ip.IpAddress
+			case constants.DatabaseInstanceIPAddressTypePublic:
+				postgresqlInstance.Status.IPs.PublicIP = ip.IpAddress
+			default:
+				continue
+			}
+		}
+	}
 }

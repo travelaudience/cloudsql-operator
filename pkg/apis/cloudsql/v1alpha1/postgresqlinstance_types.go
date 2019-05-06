@@ -396,6 +396,9 @@ type PostgresqlInstanceStatus struct {
 	// Conditions is the set of conditions associated with the current PostgresqlInstance resource.
 	// +optional
 	Conditions []PostgresqlInstanceStatusCondition `json:"conditions,omitempty"`
+	// IPs is the set of IPs associated with the current PostgresqlInstance resource.
+	// +optional
+	IPs PostgresqlInstanceStatusIPAddresses `json:"ips,omitempty"`
 }
 
 // PostgresqlInstanceStatusCondition represents a condition associated with a PostgresqlInstance resource.
@@ -417,3 +420,11 @@ type PostgresqlInstanceStatusCondition struct {
 
 // PostgresqlInstanceStatusConditionType represents the type of a condition associated with a PostgresqlInstance resource.
 type PostgresqlInstanceStatusConditionType string
+
+// PostgresqlInstanceStatusIPAddresses holds the reported IP addresses of a CSQLP instance.
+type PostgresqlInstanceStatusIPAddresses struct {
+	// PrivateIP is the private IP associated with the CSQLP instance (if any).
+	PrivateIP string `json:"privateIp,omitempty"`
+	// PublicIP is the public IP associated with the CSQLP instance (if any).
+	PublicIP string `json:"publicIp,omitempty"`
+}

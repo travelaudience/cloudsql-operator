@@ -42,6 +42,14 @@
   version = "v4.1.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:211bcf1d62481f6ec9f00cf9474615297f10f5fe7cfd70418b9d69528692c954"
+  name = "github.com/glendc/go-external-ip"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "139229dcdddd5ad18f5c4912fcb905a4079e2a36"
+
+[[projects]]
   digest = "1:4d02824a56d268f74a6b6fdd944b20b58a77c3d70e81008b3ee0c4f1a6777340"
   name = "github.com/gogo/protobuf"
   packages = [
@@ -169,6 +177,18 @@
   pruneopts = "UT"
   revision = "f55edac94c9bbba5d6182a4be46d86a2c9b5b50e"
   version = "v1.0.2"
+
+[[projects]]
+  digest = "1:bc1c0be40c67b6b4aee09d7508d5a2a52c1c116b1fa43806dad2b0d6b4d4003b"
+  name = "github.com/lib/pq"
+  packages = [
+    ".",
+    "oid",
+    "scram",
+  ]
+  pruneopts = "UT"
+  revision = "51e2106eed1cea199c802d2a49e91e2491b02056"
+  version = "v1.1.0"
 
 [[projects]]
   digest = "1:33422d238f147d247752996a26574ac48dcf472976eda7f5134015f06bf16563"
@@ -741,6 +761,8 @@
   input-imports = [
     "github.com/BurntSushi/toml",
     "github.com/appscode/jsonpatch",
+    "github.com/glendc/go-external-ip",
+    "github.com/lib/pq",
     "github.com/onsi/ginkgo",
     "github.com/onsi/gomega",
     "github.com/sirupsen/logrus",

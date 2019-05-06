@@ -268,6 +268,9 @@ func (c *PostgresqlInstanceController) processQueueItem(key string) (err error) 
 	if err != nil {
 		return err
 	}
+
+	// Update the set of IP addresses associated with the CSQLP instance and return.
+	setPostgresqlInstanceIPs(p, instance)
 	return nil
 }
 

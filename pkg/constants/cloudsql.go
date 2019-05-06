@@ -19,6 +19,10 @@ package constants
 const (
 	// DatabaseInstanceActivationPolicyAlways is the activation policy of a running, healthy CSQLP instance.
 	DatabaseInstanceActivationPolicyAlways = "ALWAYS"
+	// DatabaseInstanceIPAddressTypePublic is the type associated with a CSQLP instance's public IP.
+	DatabaseInstanceIPAddressTypePublic = "PRIMARY"
+	// DatabaseInstanceIPAddressTypePrivate is the type associated with a CSQLP instance's private IP.
+	DatabaseInstanceIPAddressTypePrivate = "PRIVATE"
 	// DatabaseInstanceStateRunnable is the state of a running, healthy CSQLP instance.
 	DatabaseInstanceStateRunnable = "RUNNABLE"
 	// OperationStatusDone is the status of an operation that has terminated.

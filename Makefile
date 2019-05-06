@@ -57,6 +57,8 @@ skaffold:
 test.e2e: FOCUS ?= .*
 test.e2e: KUBECONFIG ?= $(HOME)/.kube/config
 test.e2e: LOG_LEVEL ?= info
+test.e2e: NAMESPACE ?= cloudsql-postgres-operator
+test.e2e: PATH_TO_ADMIN_KEY ?=
 test.e2e: PROJECT_ID ?= cloudsql-postgres-operator
 test.e2e: TIMEOUT ?= 1800s
 test.e2e:
@@ -67,4 +69,5 @@ test.e2e:
 		-test.v \
 		-kubeconfig="$(KUBECONFIG)" \
 		-log-level="$(LOG_LEVEL)" \
+		-path-to-admin-key="$(shell realpath $(PATH_TO_ADMIN_KEY))" \
 		-project-id="$(PROJECT_ID)"

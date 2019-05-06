@@ -39,6 +39,10 @@ var (
 	kubeconfig string
 	// logLevel is the log level to use while running the end-to-end test suite.
 	logLevel string
+	// namespace is the name of the namespace where cloudsql-postgres-operator is running.
+	namespace string
+	// pathToAdminKey is the path to a file containing credentials for an Iam service account with the "roles/cloudsql.admin" role.
+	pathToAdminKey string
 	// projectId is the ID of the GCP project where cloudsql-postgres-operator is managing instances.
 	projectId string
 )
@@ -51,13 +55,15 @@ var (
 func init() {
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "the path to the kubeconfig file to use")
 	flag.StringVar(&logLevel, "log-level", log.InfoLevel.String(), "the log level to use while running the end-to-end test suite")
+	flag.StringVar(&namespace, "namespace", constants.ApplicationName, "the name of the namespace where cloudsql-postgres-operator is running")
+	flag.StringVar(&pathToAdminKey, "path-to-admin-key", "", `the path to a file containing credentials for an iam service account with the "roles/cloudsql.admin" role`)
 	flag.StringVar(&projectId, "project-id", "", "the id of the gcp project where cloudsql-postgres-operator is managing instances")
 	flag.Parse()
 }
 
 var _ = BeforeSuite(func() {
 	// Create a new instance of the test framework.
-	f = e2eframework.New(kubeconfig, projectId)
+	f = e2eframework.New(kubeconfig, namespace, pathToAdminKey, projectId)
 })
 
 // TestEndToEnd runs the end-to-end test suite.

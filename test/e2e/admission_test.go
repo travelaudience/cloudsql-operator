@@ -293,7 +293,7 @@ var _ = Describe("PostgresqlInstance", func() {
 				Networking: &v1alpha1.PostgresqlInstanceSpecNetworking{
 					PrivateIP: &v1alpha1.PostgresqlInstanceSpecNetworkingPrivateIP{
 						Enabled: pointers.NewBool(true),
-						Network: pointers.NewString("projects/" + f.ProjectId + "/global/networks/default"),
+						Network: pointers.NewString(f.BuildPrivateNetworkResourceLink("default")),
 					},
 					PublicIP: &v1alpha1.PostgresqlInstanceSpecNetworkingPublicIP{
 						Enabled: pointers.NewBool(true),
