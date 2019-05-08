@@ -39,10 +39,21 @@ import (
 )
 
 const (
+	// CloudSQLProxyContainerName is the name of the Cloud SQL proxy container injected in each pod.
+	CloudSQLProxyContainerName = "cloud-sql-proxy"
+	// PghostEnvVarName is the name of the "PGHOST" environment variable injected in each container.
+	PghostEnvVarName = "PGHOST"
+	// PgportEnvVarName is the name of the "PGPORT" environment variable injected in each container.
+	PgportEnvVarName = "PGPORT"
+	// PguserEnvVarName is the name of the "PGUSER" environment variable injected in each container.
+	PguserEnvVarName = "PGUSER"
+	// PgpassfileEnvVarName is the name of the "PGPASSFILE" environment variable injected in each container.
+	PgpassfileEnvVarName = "PGPASSFILE"
+)
+
+const (
 	// clientServiceAccountKeyKey is the name of the key containing the JSON credentials for the IAM service account with the "roles/cloudsql.client" role.
 	clientServiceAccountKeyKey = "credentials.json"
-	// cloudSQLProxyContainerName is the name of the Cloud SQL proxy container injected in each pod.
-	cloudSQLProxyContainerName = "cloud-sql-proxy"
 	// cloudSQLProxyContainerPortMinValue is the maximum value to use when drawing a random port number for the Cloud SQL proxy container.
 	cloudSQLProxyContainerPortMaxValue = 65535
 	// cloudSQLProxyContainerPortMinValue is the minimum value to use when drawing a random port number for the Cloud SQL proxy container.
@@ -55,16 +66,8 @@ const (
 	ipAddressTypePublic = "PUBLIC"
 	// ipAddressTypePrivate  is the value used to indicate to Cloud SQL proxy that it should connect to a CSQLP instance via its private IP.
 	ipAddressTypePrivate = "PRIVATE"
-	// pghostEnvVarName is the name of the "PGHOST" environment variable injected in each container.
-	pghostEnvVarName = "PGHOST"
 	// pghostEnvVarValue is the value of the "PGHOST" environment variable injected in each container.
 	pghostEnvVarValue = "localhost"
-	// pgportEnvVarName is the name of the "PGPORT" environment variable injected in each container.
-	pgportEnvVarName = "PGPORT"
-	// pguserEnvVarName is the name of the "PGUSER" environment variable injected in each container.
-	pguserEnvVarName = "PGUSER"
-	// pgpassfileEnvVarName is the name of the "PGPASSFILE" environment variable injected in each container.
-	pgpassfileEnvVarName = "PGPASSFILE"
 	// pgpassConfKey is the name of the key containing the username and password combination for the CSQLP instance.
 	pgpassConfKey = "pgpass.conf"
 	// pgpassConfValueFormatString is the format string used when creating the file containing the username and password combination for the CSQLP instance.
@@ -159,19 +162,19 @@ func (w *Webhook) mutatePod(namespace string, currentObj *corev1.Pod) (*corev1.P
 			})
 			c.Env = append(c.Env, []corev1.EnvVar{
 				{
-					Name:  pghostEnvVarName,
+					Name:  PghostEnvVarName,
 					Value: pghostEnvVarValue,
 				},
 				{
-					Name:  pgportEnvVarName,
+					Name:  PgportEnvVarName,
 					Value: strconv.Itoa(int(port)),
 				},
 				{
-					Name:  pguserEnvVarName,
+					Name:  PguserEnvVarName,
 					Value: string(postgresqlInstanceSecret.Data[constants.PostgresqlInstanceUsernameKey]),
 				},
 				{
-					Name:  pgpassfileEnvVarName,
+					Name:  PgpassfileEnvVarName,
 					Value: path.Join(credentialsSecretVolumeMountPath, pgpassConfKey),
 				},
 			}...)
@@ -188,7 +191,7 @@ func (w *Webhook) mutatePod(namespace string, currentObj *corev1.Pod) (*corev1.P
 		// Log the error, associating it with the namespace and name of the pod being processed.
 		log.WithFields(log.Fields{
 			"namespace": namespace,
-			"pod": currentObj.Name,
+			"pod":       currentObj.Name,
 		}).Error(err.Error())
 	}
 	return pod, err
@@ -204,7 +207,7 @@ func (w *Webhook) buildCloudSQLProxyContainer(postgresqlInstance *v1alpha1api.Po
 		ipAddressTypes = append(ipAddressTypes, ipAddressTypePrivate)
 	}
 	return corev1.Container{
-		Name:  cloudSQLProxyContainerName,
+		Name:  CloudSQLProxyContainerName,
 		Image: w.cloudsqlProxyImage,
 		Command: []string{
 			"/cloud_sql_proxy",

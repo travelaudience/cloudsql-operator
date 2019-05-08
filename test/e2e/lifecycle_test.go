@@ -32,12 +32,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/admission"
 	v1alpha1api "github.com/travelaudience/cloudsql-postgres-operator/pkg/apis/cloudsql/v1alpha1"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
 	"github.com/travelaudience/cloudsql-postgres-operator/test/e2e/framework"
 )
 
 const (
+	// cloudsqladminUser is the name of the Cloud SQL Admin user which we lookup in the test pod's logs to understand if connection was successful.
+	cloudsqladminUser = "cloudsqladmin"
 	// postgresqlDriverName is the name of the SQL driver to use when connecting to PostgreSQL.
 	postgresqlDriverName = "postgres"
 	// postgresqlConnectionStringFormat is a format string used to build the connection string to use when connecting to PostgreSQL.
@@ -51,23 +54,28 @@ const (
 	selectCurrentUserQuery = "SELECT current_user;"
 	// waitUntilPostgresqlInstanceStatusConditionTimeout is the timeout used while waiting for a given condition to be reported on a PostgresqlInstance resource.
 	waitUntilPostgresqlInstanceStatusConditionTimeout = 10 * time.Minute
+	// waitUntilPodRunningTimeout is the timeout used while waiting for a given pod to be running.
+	waitUntilPodRunningTimeout = 2 * time.Minute
+	// waitUntilPodLogLineMatchesTimeout is the timeout used while waiting for the logs of a given pod to match a given regular expression.
+	waitUntilPodLogLineMatchesTimeout = 15 * time.Second
 )
 
 var _ = Describe("CSQLP instances", func() {
-	framework.LifecycleIt("are created, updated and deleted as expected", func() {
+	framework.LifecycleIt("are created, updated, used and deleted as expected", func() {
 		var (
 			databaseInstance         *cloudsqladmin.DatabaseInstance
 			db                       *sql.DB
 			err                      error
 			username                 string
 			password                 string
+			pod                      *corev1.Pod
 			postgresqlInstance       *v1alpha1api.PostgresqlInstance
 			postgresqlInstanceSecret *corev1.Secret
 			publicIp                 string
 			selectCurrentUserValue   string
 		)
 
-		By("Creating a PostgresqlInstance resource with public IP disabled")
+		By("creating a PostgresqlInstance resource with public IP disabled")
 
 		// Create a PostgresqlInstance resource.
 		var (
@@ -239,12 +247,55 @@ var _ = Describe("CSQLP instances", func() {
 
 		db, err = sql.Open(postgresqlDriverName, fmt.Sprintf(postgresqlConnectionStringFormat, username, url.QueryEscape(password), publicIp, username))
 		Expect(err).NotTo(HaveOccurred())
+		err = db.Ping()
+		Expect(err).NotTo(HaveOccurred())
 
 		err = db.QueryRow(selectCurrentUserQuery).Scan(&selectCurrentUserValue)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(selectCurrentUserValue).To(Equal(username))
 
 		err = db.Close()
+		Expect(err).NotTo(HaveOccurred())
+
+		By(`launching a test pod requesting access to the CSQLP instance, verifying it has been injected with the Cloud SQL proxy sidecar container, and waiting for it to be ready`)
+
+		// Launch the test pod, asking it to list users (i.e. "\du;") using "psql" after it starts running.
+		pod, err = f.CreatePostgresqlTestPod(postgresqlInstance, `\du;`)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Make sure that the Cloud SQL proxy sidecar container has been injected.
+		Expect(pod.Annotations).To(HaveKeyWithValue(constants.ProxyInjectedAnnotationKey, "true"))
+		containerNames := make([]string, len(pod.Spec.Containers))
+		for _, container := range pod.Spec.Containers {
+			containerNames = append(containerNames, container.Name)
+		}
+		Expect(containerNames).To(ContainElement(admission.CloudSQLProxyContainerName))
+
+		// Make sure that the "PG*" environment variables have been injected in each container besides the Cloud SQL proxy one.
+		for _, container := range pod.Spec.Containers {
+			if container.Name != admission.CloudSQLProxyContainerName {
+				envvarNames := make([]string, len(container.Env))
+				for _, envvar := range container.Env {
+					envvarNames = append(envvarNames, envvar.Name)
+				}
+				Expect(envvarNames).To(ContainElement(admission.PghostEnvVarName))
+				Expect(envvarNames).To(ContainElement(admission.PgportEnvVarName))
+				Expect(envvarNames).To(ContainElement(admission.PguserEnvVarName))
+				Expect(envvarNames).To(ContainElement(admission.PgpassfileEnvVarName))
+			}
+		}
+
+		// Wait until the test pod is running before proceeding.
+		ctx5, fn5 := context.WithTimeout(context.Background(), waitUntilPodRunningTimeout)
+		defer fn5()
+		err = f.WaitUntilPodRunning(ctx5, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(`checking the logs of the test pod and making sure connection was successful, and that the "cloudsqladmin" user is listed`)
+
+		ctx6, fn6 := context.WithTimeout(context.Background(), waitUntilPodLogLineMatchesTimeout)
+		defer fn6()
+		err = f.WaitUntilPodLogLineMatches(ctx6, pod, cloudsqladminUser)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("deleting the PostgresqlInstance resource")
