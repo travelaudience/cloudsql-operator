@@ -396,6 +396,8 @@ type PostgresqlInstanceStatus struct {
 	// Conditions is the set of conditions associated with the current PostgresqlInstance resource.
 	// +optional
 	Conditions []PostgresqlInstanceStatusCondition `json:"conditions,omitempty"`
+	// ConnectionName is the connection name to use when connecting to the CSQLP instance.
+	ConnectionName string `json:"connectionName,omitempty"`
 	// IPs is the set of IPs associated with the current PostgresqlInstance resource.
 	// +optional
 	IPs PostgresqlInstanceStatusIPAddresses `json:"ips,omitempty"`

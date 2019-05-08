@@ -21,6 +21,8 @@ TMP_DIR="tmp/skaffold/operator"
 
 # ADMIN_KEY_JSON_FILE is the path to the file containing the credentials of the "admin" IAM service account.
 ADMIN_KEY_JSON_FILE="${ADMIN_KEY_JSON_FILE:-${ROOT_DIR}/admin-key.json}"
+# CLIENT_KEY_JSON_FILE is the path to the file containing the credentials of the "client" IAM service account.
+CLIENT_KEY_JSON_FILE="${CLIENT_KEY_JSON_FILE:-${ROOT_DIR}/client-key.json}"
 # MODE is the mode in which to run skaffold.
 MODE=${MODE:-dev}
 # PROFILE is the skaffold profile to use.
@@ -43,6 +45,9 @@ sedi -e "s|__PROJECT_ID__|${PROJECT_ID}|g" "${TMP_DIR}/"*.yaml
 # Replace the "__BASE64_ENCODED_ADMIN_KEY_JSON__" placeholder.
 BASE64_ENCODED_ADMIN_KEY_JSON="$(base64w < "${ADMIN_KEY_JSON_FILE}")"
 sedi -e "s|__BASE64_ENCODED_ADMIN_KEY_JSON__|${BASE64_ENCODED_ADMIN_KEY_JSON}|g" "${TMP_DIR}/"*.yaml
+# Replace the "__BASE64_ENCODED_CLIENT_KEY_JSON__" placeholder.
+BASE64_ENCODED_CLIENT_KEY_JSON="$(base64w < "${CLIENT_KEY_JSON_FILE}")"
+sedi -e "s|__BASE64_ENCODED_CLIENT_KEY_JSON__|${BASE64_ENCODED_CLIENT_KEY_JSON}|g" "${TMP_DIR}/"*.yaml
 
 # Check whether we need to build a binary.
 case "${MODE}" in

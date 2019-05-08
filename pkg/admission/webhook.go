@@ -29,6 +29,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	cloudsqladmin "google.golang.org/api/sqladmin/v1beta4"
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,6 +51,18 @@ const (
 var (
 	// admissionPath is the path where the handler for admission requests is served.
 	admissionPath = "/admissionrequests"
+	// podGvk is the GroupVersionKind that corresponds to Pod resources.
+	podGvk = &schema.GroupVersionKind{
+		Group:   v1.SchemeGroupVersion.Group,
+		Version: v1.SchemeGroupVersion.Version,
+		Kind:    podKind,
+	}
+	// podGvr is the GroupVersionResource that corresponds to Pod resources.
+	podGvr = metav1.GroupVersionResource{
+		Group:    v1.SchemeGroupVersion.Group,
+		Version:  v1.SchemeGroupVersion.Version,
+		Resource: podPlural,
+	}
 	// postgresqlInstanceGvk is the GroupVersionKind that corresponds to PostgresqlInstance resources.
 	postgresqlInstanceGvk = &schema.GroupVersionKind{
 		Group:   v1alpha1.SchemeGroupVersion.Group,
@@ -70,8 +83,12 @@ var (
 type Webhook struct {
 	// bindAddress is the bind address to use for the server.
 	bindAddress string
+	// clientServiceAccountKey holds the JSON credentials for an IAM service account with the "roles/cloudsql.client" role.
+	clientServiceAccountKey string
 	// cloudsqlClient is a client to the Cloud SQL Admin API.
 	cloudsqlClient *cloudsqladmin.Service
+	// cloudsqlProxyImage is the image of the Cloud SQL proxy to inject in pods requesting access to a CSQLP instance.
+	cloudsqlProxyImage string
 	// codecs is the codec factory to use to serialize/deserialize resources.
 	codecs serializer.CodecFactory
 	// kubeClient is the Kubernetes client to use.
@@ -88,17 +105,25 @@ type Webhook struct {
 
 // NewWebhook creates a new instance of the admission webhook.
 func NewWebhook(kubeClient kubernetes.Interface, selfClient selfClient.Interface, cloudsqlClient *cloudsqladmin.Service, config configuration.Configuration) (*Webhook, error) {
+	// Read the credentials of the client IAM service account.
+	c, err := ioutil.ReadFile(config.GCP.ClientServiceAccountKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the credentials of the client iam service account: %v", err)
+	}
 	// Create a new scheme and register the PostgresqlInstance type so we can serialize/deserialize it.
 	scheme := runtime.NewScheme()
 	scheme.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.PostgresqlInstance{})
+	scheme.AddKnownTypes(v1.SchemeGroupVersion, &v1.Pod{})
 	return &Webhook{
-		bindAddress:    config.Admission.BindAddress,
-		cloudsqlClient: cloudsqlClient,
-		selfClient:     selfClient,
-		codecs:         serializer.NewCodecFactory(scheme),
-		kubeClient:     kubeClient,
-		namespace:      config.Cluster.Namespace,
-		projectID:      config.GCP.ProjectID,
+		bindAddress:             config.Admission.BindAddress,
+		clientServiceAccountKey: string(c),
+		cloudsqlProxyImage:      config.Admission.CloudSQLProxyImage,
+		cloudsqlClient:          cloudsqlClient,
+		selfClient:              selfClient,
+		codecs:                  serializer.NewCodecFactory(scheme),
+		kubeClient:              kubeClient,
+		namespace:               config.Cluster.Namespace,
+		projectID:               config.GCP.ProjectID,
 	}, nil
 }
 
@@ -215,6 +240,9 @@ func (w *Webhook) validateAndMutateResource(rev admissionv1beta1.AdmissionReview
 
 	// Set currentGVK based on the provided GVR (group/version/resource).
 	switch rev.Request.Resource {
+	case podGvr:
+		// We're dealing with a Pod resource.
+		currentGVK = podGvk
 	case postgresqlInstanceGvr:
 		// We're dealing with a PostgresqlInstance resource.
 		currentGVK = postgresqlInstanceGvk
@@ -261,6 +289,13 @@ func (w *Webhook) validateAndMutateResource(rev admissionv1beta1.AdmissionReview
 
 	// Perform validation on the current resource according to its type.
 	switch currentGVK {
+	case podGvk:
+		// At this point, currentObj MUST NOT be nil and previousObj MUST be nil.
+		// Otherwise, we're in the presence of an UPDATE or DELETE request, which we don't support, and hence we should fail immediately.
+		if currentObj == nil || previousObj != nil {
+			return admissionResponseFromError(fmt.Errorf(""))
+		}
+		mutatedObj, err = w.mutatePod(rev.Request.Namespace, currentObj.(*v1.Pod))
 	case postgresqlInstanceGvk:
 		var (
 			currentPostgresqlInstance, previousPostgresqlInstance *v1alpha1.PostgresqlInstance

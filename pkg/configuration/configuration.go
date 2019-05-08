@@ -25,16 +25,28 @@ import (
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
 )
 
+const (
+	// defaultAdminServiceAccountKeyPath is the default value of "gcp.admin_service_account_key_path".
+	defaultAdminServiceAccountKeyPath = "/secret/admin-key.json"
+	// defaultClientServiceAccountKeyPath is the default value of "gcp.client_service_account_key_path".
+	defaultClientServiceAccountKeyPath = "/secret/client-key.json"
+)
+
 // Admission holds admission-related configuration options.
 type Admission struct {
 	// BindAddress is the "host:port" pair where the admission webhook is to be served.
 	BindAddress string `toml:"bind_address"`
+	// CloudSQLProxyImage is the image to use when injecting the Cloud SQL proxy in pods requesting access to a CSQLP instance.
+	CloudSQLProxyImage string `toml:"cloud_sql_proxy_image"`
 }
 
 // setDefaults sets default values where necessary.
 func (a *Admission) setDefaults() {
 	if a.BindAddress == "" {
 		a.BindAddress = constants.DefaultWebhookBindAddress
+	}
+	if a.CloudSQLProxyImage == "" {
+		a.CloudSQLProxyImage = constants.DefaultCloudSQLProxyImage
 	}
 }
 
@@ -104,15 +116,22 @@ func (l *Logging) setDefaults() {
 
 // GCP holds project-related configuration options.
 type GCP struct {
-	// AdminServiceAccountKeyPath holds the path to the file that contains credentials for an IAM Service Account with the "roles/cloudsql.admin" role.
+	// AdminServiceAccountKeyPath holds the path to the file that contains credentials for an IAM service account with the "roles/cloudsql.admin" role.
 	AdminServiceAccountKeyPath string `toml:"admin_service_account_key_path"`
+	// ClientServiceAccountKeyPath holds the path to the file that contains credentials for an IAM service account with the "roles/cloudsql.client" role.
+	ClientServiceAccountKeyPath string `toml:"client_service_account_key_path"`
 	// ProjectID holds the ID of the Google Cloud Platform project where cloudsql-postgres-operator is managing Cloud SQL instances.
 	ProjectID string `toml:"project_id"`
 }
 
 // setDefaults sets default values where necessary.
 func (g *GCP) setDefaults() {
-	// Nothing to do.
+	if g.AdminServiceAccountKeyPath == "" {
+		g.AdminServiceAccountKeyPath = defaultAdminServiceAccountKeyPath
+	}
+	if g.ClientServiceAccountKeyPath == "" {
+		g.ClientServiceAccountKeyPath = defaultClientServiceAccountKeyPath
+	}
 }
 
 // MustNewConfigurationFromFile attempts to parse the specified configuration file, exiting the application if it cannot be parsed.

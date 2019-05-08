@@ -58,6 +58,7 @@ rules:
   verbs:
   - create
   - get
+  - patch
   - update
 # Allow for reading, listing, patching and watching PostgresqlInstance resources.
 - apiGroups:

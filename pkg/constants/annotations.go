@@ -24,4 +24,8 @@ const (
 const (
 	// AllowDeletionAnnotationKey is the key of the annotation that specifies whether deletion of a given resource is allowed.
 	AllowDeletionAnnotationKey = annotationKeyPrefix + "allow-deletion"
+	// PostgresqlInstanceNameAnnotationKey is the key of the annotation that specifies which PostgresqlInstance a given pod wants to connect to.
+	PostgresqlInstanceNameAnnotationKey = annotationKeyPrefix + "postgresqlinstance-name"
+	// ProxyInjectedAnnotationKey is the key of the annotation set on Pod resources which have been injected with the Cloud SQL proxy sidecar.
+	ProxyInjectedAnnotationKey = annotationKeyPrefix + "proxy-injected"
 )

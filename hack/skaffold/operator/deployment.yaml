@@ -8,6 +8,8 @@ metadata:
 data:
   admin-key.json: |
     __BASE64_ENCODED_ADMIN_KEY_JSON__
+  client-key.json: |
+    __BASE64_ENCODED_CLIENT_KEY_JSON__
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -19,7 +21,6 @@ metadata:
 data:
   config.toml: |
     [gcp]
-    admin_service_account_key_path = "/secret/admin-key.json"
     project_id = "__PROJECT_ID__"
     [logging]
     level = "trace"

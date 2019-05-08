@@ -39,13 +39,21 @@ const (
 	cloudsqlPostgresOperatorServiceName = "cloudsql-postgres-operator"
 	// mutatingWebhookConfigurationResourceName is the name to use when creating the MutatingWebhookConfiguration resource.
 	mutatingWebhookConfigurationResourceName = "cloudsql-postgres-operator"
-	// webhookName is the name of the admission webhook itself.
-	webhookName = "webhook.cloudsql.travelaudience.com"
+	// podKind is the kind that corresponds to Pod resources.
+	podKind = "Pod"
+	// podPlural is the plural name that corresponds to Pod resources.
+	podPlural = "pods"
+	// podWebhookName is the name of the admission webhook that deals with Pod resources.
+	podWebhookName = "pod.cloudsql.travelaudience.com"
+	// postgresqlInstanceWebhookName is the name of the admission webhook that deals with PostgresqlInstance resources.
+	postgresqlInstanceWebhookName = "postgresqlinstance.cloudsql.travelaudience.com"
 )
 
 var (
-	// failurePolicy is the failure policy to use.
-	failurePolicy = admissionregistrationv1beta1.Fail
+	// podFailurePolicy is the failure policy to use for the admission webhook that deals with Pod resources.
+	podFailurePolicy = admissionregistrationv1beta1.Ignore
+	// postgresInstanceFailurePolicy is the failure policy to use for the admission webhook that deals with PostgresqlInstance resources.
+	postgresInstanceFailurePolicy = admissionregistrationv1beta1.Fail
 )
 
 // Register registers the admission webhook by making sure a MutatingWebhookConfiguration resource with the desired configuration exists.
@@ -115,7 +123,37 @@ func (w *Webhook) buildMutatingWebhookConfigurationObject() *admissionregistrati
 		},
 		Webhooks: []admissionregistrationv1beta1.Webhook{
 			{
-				Name: webhookName,
+				Name: podWebhookName,
+				Rules: []admissionregistrationv1beta1.RuleWithOperations{
+					{
+						Operations: []admissionregistrationv1beta1.OperationType{
+							admissionregistrationv1beta1.Create,
+						},
+						Rule: admissionregistrationv1beta1.Rule{
+							APIGroups: []string{
+								v1.SchemeGroupVersion.Group,
+							},
+							APIVersions: []string{
+								v1.SchemeGroupVersion.Version,
+							},
+							Resources: []string{
+								podPlural,
+							},
+						},
+					},
+				},
+				ClientConfig: admissionregistrationv1beta1.WebhookClientConfig{
+					Service: &admissionregistrationv1beta1.ServiceReference{
+						Name:      cloudsqlPostgresOperatorServiceName,
+						Namespace: w.namespace,
+						Path:      &admissionPath,
+					},
+					CABundle: caBundle,
+				},
+				FailurePolicy: &podFailurePolicy,
+			},
+			{
+				Name: postgresqlInstanceWebhookName,
 				Rules: []admissionregistrationv1beta1.RuleWithOperations{
 					{
 						Operations: []admissionregistrationv1beta1.OperationType{
@@ -144,7 +182,7 @@ func (w *Webhook) buildMutatingWebhookConfigurationObject() *admissionregistrati
 					},
 					CABundle: caBundle,
 				},
-				FailurePolicy: &failurePolicy,
+				FailurePolicy: &postgresInstanceFailurePolicy,
 			},
 		},
 	}

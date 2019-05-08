@@ -25,4 +25,6 @@ const (
 	DefaultWebhookBindAddress = "0.0.0.0:443"
 	// DefaultControllersResyncPeriodSeconds is the resync period (in seconds) to use by default.
 	DefaultControllersResyncPeriodSeconds = 120
+	// DefaultCloudSQLProxyImage is the image of the Cloud SQL proxy to inject by default.
+	DefaultCloudSQLProxyImage = "gcr.io/cloudsql-docker/gce-proxy:1.14"
 )
