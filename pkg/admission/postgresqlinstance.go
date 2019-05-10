@@ -39,7 +39,7 @@ const (
 
 var (
 	// hourOfTheDayRegex is the regular expression used to match hours of the day in 24-hour format.
-	hourOfTheDayRegex = regexp.MustCompile(`^([01][0-9]|2[03]):00$`)
+	hourOfTheDayRegex = regexp.MustCompile(`^([01][0-9]|2[0-3]):00$`)
 	// postgresqlInstanceSpecNameRegex is the regular expression used to validate the ".spec.name" field of a PostgresqlInstance resource.
 	postgresqlInstanceSpecNameRegex = regexp.MustCompile(`^[a-z][a-z0-9-]+[a-z0-9]$`)
 )
