@@ -96,11 +96,11 @@ var _ = Describe("CSQLP instances", func() {
 			maintenanceDay             = v1alpha1api.PostgresqlInstanceSpecMaintenanceDayMonday
 			maintenanceHour            = v1alpha1api.PostgresqlInstanceSpecMaintenanceHour("00:00")
 			privateIpEnabled           = true
-			privateIpNetwork           = f.BuildPrivateNetworkResourceLink("default")
+			privateIpNetwork           = f.BuildPrivateNetworkResourceLink(network)
 			publicIpAuthorizedNetworks = v1alpha1api.PostgresqlInstanceSpecNetworkingPublicIPAuthorizedNetworkList{}
 			publicIpEnabled            = false
-			region                     = "europe-west4"
-			zone                       = v1alpha1api.PostgresqlInstanceSpecLocationZone("europe-west4-b")
+			region                     = region
+			zone                       = v1alpha1api.PostgresqlInstanceSpecLocationZoneAny
 			version                    = v1alpha1api.PostgresqlInstanceSpecVersion96
 		)
 		postgresqlInstance = &v1alpha1api.PostgresqlInstance{
@@ -153,6 +153,13 @@ var _ = Describe("CSQLP instances", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(postgresqlInstance).NotTo(BeNil())
 
+		defer func() {
+			By("deleting the PostgresqlInstance resource")
+
+			err = f.DeletePostgresqlInstanceByName(postgresqlInstance.Name)
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
 		By(`waiting for the "Created" condition to be "True"`)
 
 		ctx1, fn1 := context.WithTimeout(context.Background(), waitUntilPostgresqlInstanceStatusConditionTimeout)
@@ -183,7 +190,7 @@ var _ = Describe("CSQLP instances", func() {
 		Expect(databaseInstance.Settings.IpConfiguration.PrivateNetwork).To(Equal(*postgresqlInstance.Spec.Networking.PrivateIP.Network))
 		Expect(databaseInstance.Settings.MaintenanceWindow.Day).To(Equal(postgresqlInstance.Spec.Maintenance.Day.APIValue()))
 		Expect(databaseInstance.Settings.MaintenanceWindow.Hour).To(Equal(postgresqlInstance.Spec.Maintenance.Hour.APIValue()))
-		Expect(databaseInstance.Settings.LocationPreference.Zone).To(Equal(postgresqlInstance.Spec.Location.Zone.APIValue()))
+		Expect(databaseInstance.Settings.LocationPreference.Zone).To(MatchRegexp(fmt.Sprintf("^%s-[a-z]$", region)))
 		Expect(databaseInstance.Settings.Tier).To(Equal(*postgresqlInstance.Spec.Resources.InstanceType))
 		Expect(databaseInstance.Settings.StorageAutoResizeLimit).To(Equal(int64(*postgresqlInstance.Spec.Resources.Disk.SizeMaximumGb)))
 		Expect(*databaseInstance.Settings.StorageAutoResize).To(Equal(*postgresqlInstance.Spec.Resources.Disk.SizeMaximumGb == int32(0)))
@@ -298,9 +305,56 @@ var _ = Describe("CSQLP instances", func() {
 		err = f.WaitUntilPodLogLineMatches(ctx6, pod, cloudsqladminUser)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("deleting the PostgresqlInstance resource")
+		// If we've been told not to test private IP access to the CSQLP instance, we may return now.
+		if !testPrivateIpAccess {
+			return
+		}
 
-		err = f.DeletePostgresqlInstanceByName(postgresqlInstance.Name)
+		By(`disabling public IP networking and removing the external IP of the current host from the list of authorized networks`)
+
+		publicIpEnabled = false
+		publicIpAuthorizedNetworks = make([]v1alpha1api.PostgresqlInstanceSpecNetworkingPublicIPAuthorizedNetwork, 0)
+		postgresqlInstance.Spec.Networking.PublicIP.Enabled = &publicIpEnabled
+		postgresqlInstance.Spec.Networking.PublicIP.AuthorizedNetworks = publicIpAuthorizedNetworks
+		postgresqlInstance, err = f.SelfClient.CloudsqlV1alpha1().PostgresqlInstances().Update(postgresqlInstance)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(`waiting for the "Ready" condition to switch to "False" and back to "True"`)
+
+		ctx7, fn7 := context.WithTimeout(context.Background(), waitUntilPostgresqlInstanceStatusConditionTimeout)
+		defer fn7()
+		err = f.WaitUntilPostgresqlInstanceStatusCondition(ctx7, postgresqlInstance, v1alpha1api.PostgresqlInstanceStatusConditionTypeReady, corev1.ConditionFalse)
+		Expect(err).NotTo(HaveOccurred())
+
+		ctx8, fn8 := context.WithTimeout(context.Background(), waitUntilPostgresqlInstanceStatusConditionTimeout)
+		defer fn8()
+		err = f.WaitUntilPostgresqlInstanceStatusCondition(ctx8, postgresqlInstance, v1alpha1api.PostgresqlInstanceStatusConditionTypeReady, corev1.ConditionTrue)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(`checking that the private IP for the CSQLP instance keeps being reported, and that the public IP is no longer reported`)
+
+		postgresqlInstance, err = f.SelfClient.CloudsqlV1alpha1().PostgresqlInstances().Get(postgresqlInstance.Name, metav1.GetOptions{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(postgresqlInstance.Status.IPs.PublicIP).To(BeEmpty())
+		Expect(postgresqlInstance.Status.IPs.PrivateIP).NotTo(BeEmpty())
+
+		By(`launching a new test pod that will connect to the CSQLP instance using its private IP`)
+
+		// Launch the test pod, asking it to list users (i.e. "\du;") using "psql" after it starts running.
+		pod, err = f.CreatePostgresqlTestPod(postgresqlInstance, `\du;`)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Wait until the test pod is running before proceeding.
+		ctx9, fn9 := context.WithTimeout(context.Background(), waitUntilPodRunningTimeout)
+		defer fn9()
+		err = f.WaitUntilPodRunning(ctx9, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(`checking the logs of the test pod and making sure connection was successful, and that the "cloudsqladmin" user is listed`)
+
+		ctx10, fn10 := context.WithTimeout(context.Background(), waitUntilPodLogLineMatchesTimeout)
+		defer fn10()
+		err = f.WaitUntilPodLogLineMatches(ctx10, pod, cloudsqladminUser)
 		Expect(err).NotTo(HaveOccurred())
 	})
 })

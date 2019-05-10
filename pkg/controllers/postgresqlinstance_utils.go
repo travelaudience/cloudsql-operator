@@ -284,6 +284,7 @@ func setPostgresqlInstanceCondition(postgresqlInstance *v1alpha1api.PostgresqlIn
 
 // setPostgresqlInstanceConnectionNameAndIPs sets the connection name and the set of IPs of associated with the provided CSQLP instance.
 func setPostgresqlInstanceConnectionNameAndIPs(postgresqlInstance *v1alpha1api.PostgresqlInstance, databaseInstance *cloudsqladmin.DatabaseInstance) {
+	postgresqlInstance.Status.IPs = v1alpha1api.PostgresqlInstanceStatusIPAddresses{}
 	for _, ip := range databaseInstance.IpAddresses {
 		if ip != nil {
 			switch ip.Type {

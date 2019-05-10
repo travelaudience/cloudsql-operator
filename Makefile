@@ -60,8 +60,11 @@ test.e2e: FOCUS ?= .*
 test.e2e: KUBECONFIG ?= $(HOME)/.kube/config
 test.e2e: LOG_LEVEL ?= info
 test.e2e: NAMESPACE ?= cloudsql-postgres-operator
+test.e2e: NETWORK ?= default
 test.e2e: PATH_TO_ADMIN_KEY ?=
 test.e2e: PROJECT_ID ?= cloudsql-postgres-operator
+test.e2e: REGION ?= europe-west1
+test.e2e: TEST_PRIVATE_IP_ACCESS ?= false
 test.e2e: TIMEOUT ?= 1800s
 test.e2e:
 	@go test -tags e2e $(ROOT)/test/e2e \
@@ -71,5 +74,8 @@ test.e2e:
 		-test.v \
 		-kubeconfig="$(KUBECONFIG)" \
 		-log-level="$(LOG_LEVEL)" \
+		-network="$(NETWORK)" \
 		-path-to-admin-key="$(shell realpath $(PATH_TO_ADMIN_KEY))" \
-		-project-id="$(PROJECT_ID)"
+		-project-id="$(PROJECT_ID)" \
+		-region="$(REGION)" \
+		-test-private-ip-access="$(TEST_PRIVATE_IP_ACCESS)"

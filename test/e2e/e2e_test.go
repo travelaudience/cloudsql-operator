@@ -30,8 +30,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
+	"github.com/travelaudience/cloudsql-postgres-operator/pkg/admission"
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
 	e2eframework "github.com/travelaudience/cloudsql-postgres-operator/test/e2e/framework"
+)
+
+const (
+	// defaultNetwork if the name of the VPC in which to create the CSQLP instance used for testing when a custom value isn't provided.
+	defaultNetwork = "default"
 )
 
 var (
@@ -41,10 +47,17 @@ var (
 	logLevel string
 	// namespace is the name of the namespace where cloudsql-postgres-operator is running.
 	namespace string
+	// network is the name of the VPC in which to create the CSQLP instance used for testing.
+	network string
 	// pathToAdminKey is the path to a file containing credentials for an Iam service account with the "roles/cloudsql.admin" role.
 	pathToAdminKey string
 	// projectId is the ID of the GCP project where cloudsql-postgres-operator is managing instances.
 	projectId string
+	// region is the name of the region where to create the CSQLP instance used for testing.
+	region string
+	// testPrivateIpAccess indicates whether we should test private IP access to the CSQLP instance used for testing.
+	// This requires that the test suite is run against a VPC-native GKE cluster in the "networkName" VPC and in the "region" region.
+	testPrivateIpAccess bool
 )
 
 var (
@@ -56,8 +69,11 @@ func init() {
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "the path to the kubeconfig file to use")
 	flag.StringVar(&logLevel, "log-level", log.InfoLevel.String(), "the log level to use while running the end-to-end test suite")
 	flag.StringVar(&namespace, "namespace", constants.ApplicationName, "the name of the namespace where cloudsql-postgres-operator is running")
+	flag.StringVar(&network, "network", defaultNetwork, "the name of the vpc in which to create the csqlp instance used for testing")
 	flag.StringVar(&pathToAdminKey, "path-to-admin-key", "", `the path to a file containing credentials for an iam service account with the "roles/cloudsql.admin" role`)
 	flag.StringVar(&projectId, "project-id", "", "the id of the gcp project where cloudsql-postgres-operator is managing instances")
+	flag.StringVar(&region, "region", admission.PostgresqlInstanceSpecLocationRegionDefault, "the name of the region where to create the csqlp instance used for testing")
+	flag.BoolVar(&testPrivateIpAccess, "test-private-ip-access", false, "whether we should test private ip access to the csqlp instance used for testing")
 	flag.Parse()
 }
 
