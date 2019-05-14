@@ -1,4 +1,5 @@
 .idea/
+bin/
 build/
 pkg/apis/cloudsql/v1alpha1/zz_generated.deepcopy.go
 pkg/client/

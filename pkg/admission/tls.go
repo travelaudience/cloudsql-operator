@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/cert"
+	"k8s.io/client-go/util/keyutil"
 
 	"github.com/travelaudience/cloudsql-postgres-operator/pkg/constants"
 )
@@ -70,7 +71,7 @@ func (w *Webhook) ensureTLSSecret() (*corev1.Secret, error) {
 	}
 	// PEM-encode the private key.
 	keyBytes := pem.EncodeToMemory(&pem.Block{
-		Type:  cert.RSAPrivateKeyBlockType,
+		Type:  keyutil.RSAPrivateKeyBlockType,
 		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	})
 	// Self-sign the certificate using the private key.

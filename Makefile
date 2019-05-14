@@ -19,25 +19,10 @@ build:
 		-v \
 		$(ROOT)/cmd/operator/main.go
 
-# dep installs the project's build dependencies.
-.PHONY: dep
-dep: KUBERNETES_VERSION=1.13.4
-dep: KUBERNETES_CODE_GENERATOR_PKG=k8s.io/code-generator
-dep:
-	@dep ensure -v
-	@go get -d $(KUBERNETES_CODE_GENERATOR_PKG)/... && \
-		cd $(GOPATH)/src/$(KUBERNETES_CODE_GENERATOR_PKG) && \
-		git fetch origin && \
-		git checkout -fq kubernetes-$(KUBERNETES_VERSION)
-
 # gen executes the code generation step.
 .PHONY: gen
-gen: dep
-	@$(GOPATH)/src/k8s.io/code-generator/generate-groups.sh "deepcopy,client,informer,lister" \
-		github.com/travelaudience/cloudsql-postgres-operator/pkg/client \
-		github.com/travelaudience/cloudsql-postgres-operator/pkg/apis \
-		cloudsql:v1alpha1 \
-		--go-header-file $(ROOT)/hack/header.go.txt
+gen:
+	@$(ROOT)/hack/update-codegen.sh
 
 # skaffold deploys cloudsql-postgres-operator to the Kubernetes cluster targeted by the current context.
 .PHONY: skaffold

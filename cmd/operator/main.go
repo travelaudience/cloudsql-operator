@@ -155,6 +155,7 @@ func main() {
 		config.Cluster.Namespace,
 		constants.ApplicationName,
 		kubeClient.CoreV1(),
+		kubeClient.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      id,
 			EventRecorder: er,
