@@ -1,0 +1,197 @@
+= Managing Cloud SQL for PostgreSQL instances
+This document details how to manage Cloud SQL for PostgreSQL (CSQLP) instances using `cloudsql-postgres-operator`.
+:icons: font
+:toc:
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+== Foreword
+
+Before proceeding, one should make themselves familiar with https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/[custom resource definitions] and with the <<../design/00-overview.adoc#api,`cloudsql-postgres-operator` API specification>>, as well as with https://cloud.google.com/sql/docs/postgres/concepts[Cloud SQL for PostgreSQL].
+
+== Creating a CSQLP instance
+
+The interface for creating CSQLP instances using `cloudsql-postgres-operator` is the `PostgresqlInstance` custom resource definition.
+This custom resource definition allows for specifying the _desired_ state of the CSQLP instance.
+
+The `PostgresqlInstance` custom resource definition is **NOT** namespaced.
+This means that...
+
+* ... when creating `PostgresqlInstance` resources, one must not specify `.metadata.namespace`;
+* ... CSQLP instances managed by `cloudsql-postgres-operator` are global to the Kubernetes cluster and may be used by pods running in all namespaces.
+
+An example request for the creation of a `PostgresqlInstance` custom resource can be found below:
+
+[[postgresql-instance-0-example]]
+[source,yaml]
+----
+$ cat <<EOF | kubectl create -f -
+apiVersion: cloudsql.travelaudience.com/v1alpha1
+kind: PostgresqlInstance
+metadata:
+  name: postgresql-instance-0
+spec:
+  availability:
+    type: Regional
+  backups:
+    daily:
+      enabled: true
+      startTime: "22:00"
+  flags:
+  - autovacuum=on
+  location:
+    region: europe-west4
+    zone: europe-west4-b
+  maintenance:
+    day: Saturday
+    hour: "16:00"
+  name: cloudsql-psql-123456
+  networking:
+    privateIp:
+      enabled: true
+      network: projects/cloudsql-postgres-operator-123456/global/networks/default
+    publicIp:
+      authorizedNetworks:
+      - cidr: 30.60.90.120/32
+        name: alice
+      - cidr: 120.90.60.0/24
+        name: bob
+      enabled: true
+  resources:
+    disk:
+      size:
+        maximumGb: 40
+        minimumGb: 20
+      type: SSD
+    instanceType: db-custom-2-7680
+  version: "9.6"
+EOF
+----
+
+Running such a command will causes `cloudsql-postgres-operator` to provision a CSQLP instance named `cloudsql-psql-123456` and having with the following configuration:
+
+* 2 vCPUs, 7.5GB RAM, and a 20GB SSD disk which may be automatically resized up to 40GB.
+* Located on the `europe-west-4b` zone, having high-availability enabled.
+* Accessible via a private IP on the `default` VPC of the `cloudsql-postgres-operator-123456` project.
+* Accessible via a public IP from `30.60.90.120` and from every IP in the `120.90.60.0/24` network.
+* May undergo weekly maintenance on Saturdays, starting at 16:00 UTC.
+* Has daily backups enabled and performed everyday, starting at 22:00 UTC.
+* Runs PostgreSQL 9.6.
+
+A few seconds after running the abovementioned command, listing `PostgresqlInstance` resources will reveal the recently-created instance:
+
+[source,bash]
+----
+$ kubectl get postgresqlinstances
+NAME                    INSTANCE NAME          INSTANCE VERSION   AGE
+postgresql-instance-0   cloudsql-psql-123456   9.6                30s
+----
+
+[NOTE]
+====
+The values of `.metadata.name` and `.spec.name` of a given `PostgresqlInstance` resource are independent.
+`.metadata.name` identifies the `PostgresqlInstance` resource _within_ the Kubernetes cluster, while `.spec.name` specifies the actual name of the CSQLP instance in the GCP project.
+====
+
+== Inspecting a CSQLP instance
+
+Describing the abovementioned `PostgresqlInstance` resource will reveal further details about the status of the associated CSQLP instance:
+
+[source,bash]
+----
+$ kubectl describe postgresqlinstance postgresql-instance-0
+(...)
+Status:
+  Conditions:
+    Last Transition Time:  2019-05-16T10:08:50Z
+    Message:               the instance has been created
+    Reason:                InstanceCreated
+    Status:                True
+    Type:                  Created
+    Last Transition Time:  2019-05-16T10:14:28Z
+    Message:               the instance is running and ready
+    Reason:                InstanceReady
+    Status:                True
+    Type:                  Ready
+    Last Transition Time:  2019-05-16T10:14:30Z
+    Message:               the instance's settings are up-to-date
+    Reason:                InstanceUpToDate
+    Status:                True
+    Type:                  UpToDate
+  Connection Name:         cloudsql-postgres-operator-123456:europe-west4:cloudsql-psql-123456
+  Ips:
+    Private Ip:  10.76.33.2
+    Public Ip:   104.199.31.153
+Events:
+  Type    Reason               Age                   From                        Message
+  ----    ------               ----                  ----                        -------
+  Normal  InstanceCreated      7m40s                 cloudsql-postgres-operator  the instance has been created
+  Normal  OperationInProgress  4m2s (x4 over 7m40s)  cloudsql-postgres-operator  the instance has an ongoing operation (id: "ebb6796d-f236-42a7-995f-ff9fb0df689d", type: "CREATE", status: "RUNNING")
+  Normal  InstanceReady        2s (x3 over 2m2s)     cloudsql-postgres-operator  the instance is running and ready
+  Normal  InstanceUpToDate     2s (x3 over 2m)       cloudsql-postgres-operator  the instance's settings are up-to-date
+----
+
+As shown above, `cloudsql-postgres-operator` reports the status of the associated CSQLP instance the resource's `.status.conditions` field.
+This status is represented by three different conditions:
+
+* The `Created` condition is set to `True` to indicate that creation of the CSQLP instance is terminated.
+In case creation of the CSQLP instance fails, the condition is set to `False`.
+In this case, and if the Cloud SQL Admin API reports an error, it will be shown as the condition's message.
+* The `Ready` condition is set to `True` whenever the CSQLP instance is detected as being ready to accept requests.
+This happens after the CSQLP instance is created, and then after each (successful) update of the CSQLP instance's specification.
+In case an update to the CSQLP instance fails, the condition is set to `False`.
+In this case, and if the Cloud SQL Admin API reports an error, it will be shown as the condition's message.
+* The `UpToDate` condition is set to `True` whenever `cloudsql-postgres-operator` finishes driving a CSQLP instance's specification inline with the desired state.
+It can be seen as an indicator that `cloudsql-postgres-operator` is actively managing the instance, as well as of the last time it performed a change to the CSQLP instance.
+
+Besides reporting these conditions, `cloudsql-postgres-operator` additionaly reports the CSQLP instance's private and/or public IP addresses, and its connection name.
+This information can be used whenever manual connection to the CSQLP instance is required.
+
+== Updating a CSQLP instance
+
+Most fields under the `.spec` field of a `PostgresqlInstance` resource can be updated.
+Changes made to these fields will cause `cloudsql-postgres-operator` to update the associated CSQLP instance in order to drive it toward the desired configuration.
+In some cases, such as when adding or removing values from `.spec.networking.publicIp.authorizedNetworks`, little to no downtime is expected to occur.
+In some other cases, such as when changing the value of `.spec.instanceType`, the CSQLP instance may experience considerable downtime.
+Hence, updates to a CSQLP instance that is in use should be carefully planned before being executed.
+
+== Deleting a CSQLP instance
+
+To delete a CSQLP instance, one should delete the `PostgresqlInstance` resource that represents it.
+However, and in order to prevent accidental deletion of CSQLP instances, `cloudsql-postgres-operator` will refuse to delete `PostgresqlInstance` unless the following annotation is explicitly set on the resource:
+
+[source,yaml]
+----
+cloudsql.travelaudience.com/allow-deletion: "true"
+----
+
+If this annotation is not present, or if its value differs from `true`, deletion of the `PostgresqlInstance` resource (and hence of the associated CSQLP instance) is rejected upfront.
+Hence, to actually delete a CSQLP instance, one must first run:
+
+[source,bash]
+----
+$ kubectl annotate \
+    --overwrite postgresqlinstance <name> \
+        cloudsql.travelaudience.com/allow-deletion=true
+----
+
+Only then one may proceed to actually deleting the resource:
+
+[source,bash]
+----
+$ kubectl delete postgresqlinstance <name>
+----
+
+IMPORTANT: The above command is **DESCTRUCTIVE**, as the associated CSQLP instance will (almost) immediately be deleted from the Google Cloud Platform project.
+
+[WARNING]
+====
+Every workload that may be using the CSQLP instance will lose connectivity to the instance from the moment the above command is run.
+Running this command does not destroy said workloads.
+====

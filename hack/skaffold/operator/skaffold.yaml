@@ -8,7 +8,7 @@ build:
 deploy:
   kubectl:
     manifests:
-    - docs/deployment/00-prereqs.yaml
+    - docs/deployment/02-service-account.yaml
     - __TMP_DIR__/deployment.yaml
 profiles:
 - name: gke

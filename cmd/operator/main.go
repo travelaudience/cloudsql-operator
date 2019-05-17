@@ -75,6 +75,9 @@ func main() {
 	// Parse the provided command-line flags.
 	flag.Parse()
 
+	// Birth cry.
+	log.WithField(constants.Version, version.Version).Infof("%s is starting", constants.ApplicationName)
+
 	// Parse the provided configuration file.
 	config = configuration.MustNewConfigurationFromFile(configFile)
 
@@ -87,8 +90,6 @@ func main() {
 
 	// Setup a signal handler so we can gracefully shutdown when requested to.
 	stopCh := signals.SetupSignalHandler()
-	// Birth cry.
-	log.WithField(constants.Version, version.Version).Infof("%s is starting", constants.ApplicationName)
 
 	// Create a Kubernetes configuration object.
 	kubeConfig, err := clientcmd.BuildConfigFromFlags("", config.Cluster.Kubeconfig)

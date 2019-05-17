@@ -328,7 +328,7 @@ spec:
         minimumGb: 20
       type: SSD
     instanceType: db-custom-2-7680
-  version: 9.6
+  version: "9.6"
 ----
 
 Creating said resource causes `cloudsql-postgres-operator` to provision a CSQLP instance named `cloudsql-psql-123456` and having with the following configuration:

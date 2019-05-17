@@ -1,3 +1,27 @@
 = cloudsql-postgres-operator
-
 Manages https://cloud.google.com/sql/docs/postgres/[GCP Cloud SQL for PostgreSQL] instances atop Kubernetes, automating their creation and administration.
+:icons: font
+:toc:
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+== Documentation
+
+=== Usage
+
+One can find comprehensive usage documentation in the link:./docs/usage[`docs/usage/`] directory of this repository.
+Existing usage documentation covers the following topics:
+
+1. <<./docs/usage/00-installation-guide.adoc#,Installation Guide>> provides instructions on how to install and configure `cloudsql-postgres-operator`.
+1. <<./docs/usage/01-managing-csqlp-instances.adoc#,Managing CSQLP instances>> includes details on how to manage CSQLP instances.
+1. <<./docs/usage/02-connecting-to-csqlp-instances.adoc#,Connecting to CSQLP instances>> details how to connect Kubernetes workloads to CSQLP instances.
+
+=== Design
+
+The design document for `cloudsql-postgres-operator` can be found <<./docs/design/00-overview.adoc#,here>>.

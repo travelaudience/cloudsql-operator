@@ -19,6 +19,13 @@ build:
 		-v \
 		$(ROOT)/cmd/operator/main.go
 
+# docker builds a Docker image containing the cloudsql-postgres-operator binary.
+.PHONY: docker
+docker: IMG ?= quay.io/travelaudience/cloudsql-postgres-operator
+docker: TAG ?= latest
+docker:
+	@docker build -t $(IMG):$(TAG) .
+
 # gen executes the code generation step.
 .PHONY: gen
 gen:

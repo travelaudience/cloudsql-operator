@@ -1,0 +1,118 @@
+= Connecting to Cloud SQL for PostgreSQL instances
+This document details how to connect to Cloud SQL for PostgreSQL (CSQLP) instances from within Kubernetes.
+:icons: font
+:toc:
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+== Connecting to CSQLP instances
+
+After one has created a CSQLP instance, one will certainly want to connect one or more Kubernetes workloads to it.
+Typically, this is done by deploying the https://cloud.google.com/sql/docs/postgres/sql-proxy[Cloud SQL proxy] as a sidecar container in every pod requiring access to the CSQLP instance, in what represents a manual and error-prone process.
+`cloudsql-postgres-operator` simplifies this process by _automatically injecting_ the Cloud SQL proxy in said pods and configuring each of their containers's environment as required in order to enable automatic connection.
+
+To request for the Cloud SQL proxy to be injected on a pod, one needs only to annotate said pod with the following annotation when _creating_ the pod:
+
+[source,yaml]
+----
+cloudsql.travelaudience.com/postgresqlinstance-name: "<name>"
+----
+
+NOTE: In the above annotation, `<name>` refers to the name of the target `PostgresqlInstance` resource (and not to the name of the CSQLP instance itself).
+
+[IMPORTANT]
+====
+`cloudsql-postgres-operator` **DOES NOT** modify existing pods.
+Hence, pods requiring access to a CSQLP instance must include the abovementioned annotation when they are first created.
+====
+
+As an example, and assuming that there exists a `PostgresqlInstance` resource named `postgresql-instance-0`, running the following command will cause `cloudsql-postgres-operator` to automatically inject the Cloud SQL proxy in each pod belonging to the `csqlp-client-0` deployment, configuring it in order to connect to the CSQLP instance represented by the `postgresql-instance-0` resource:
+
+[source,bash]
+----
+$ cat <<EOF | kubectl create -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: csqlp-client-0
+  name: csqlp-client-0
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: csqlp-client-0
+  template:
+    metadata:
+      annotations:
+        cloudsql.travelaudience.com/postgresqlinstance-name: postgresql-instance-0
+      labels:
+        app: csqlp-client-0
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:9.6
+        command:
+        - "sleep"
+        - "3600"
+EOF
+----
+
+TIP: One should note that the abovementioned annotation is placed in the `.spec.template.metadata` field of the `Deployment` resource, and not  directly on the `.metadata` field.
+
+A few seconds after running the abovementioned command, listing pods in the `default` namespace will reveal three pods, as expected:
+
+[source,bash]
+----
+$ kubectl get pod
+NAME                              READY   STATUS    RESTARTS   AGE
+csqlp-client-0-6779684dc6-p2wbc   2/2     Running   0          30s
+csqlp-client-0-6779684dc6-pk55z   2/2     Running   0          30s
+csqlp-client-0-6779684dc6-v8dpk   2/2     Running   0          30s
+----
+
+One should note however that, instead of a single container, each pod has actually two containers - meaning that the Cloud SQL proxy was injected by `cloudsql-postgres-operator`.
+This can be further verified by describing one of the pods:
+
+[source,bash]
+----
+$ kubectl describe pod csqlp-client-0-6779684dc6-p2wbc
+(...)
+Containers:
+(...)
+  postgres:
+(...)
+      Environment:
+        PGHOST:      localhost
+        PGPORT:      58344
+        PGUSER:      postgres
+        PGPASSFILE:  /secret/pgpass.conf
+(...)
+  cloud-sql-proxy:
+    Container ID:  docker://1208a01c3225a05a909d59136967d820e299091bf41454707938d14da0ecf077
+    Image:         gcr.io/cloudsql-docker/gce-proxy:1.14
+    Image ID:      docker-pullable://gcr.io/cloudsql-docker/gce-proxy@sha256:96689ad665bffc521fc9ac3cbcaa90f7d543a3fc6f1c84f81e4148a22ffa66e0
+    Port:          58344/TCP
+    Host Port:     0/TCP
+    Command:
+      /cloud_sql_proxy
+      -credential_file=/secret/credentials.json
+      -instances=cloudsql-postgres-operator-123456:europe-west4:cloudsql-psql-123456
+      -ip_address_types=PUBLIC,PRIVATE
+(...)
+----
+
+As it can be seen, `cloudsql-postgres-operator` has modified the original specification of each pod in order to...
+
+* ... inject the Cloud SQL proxy as a sidecar container (`cloud-sql-proxy`);
+* ... inject the `PGHOST`, `PGPORT`, `PGUSER` and `PGPASSFILE` variables in each remaining container so that connection to the CSQLP instance is as automated as possible.
+
+The names of the environment variables are chosen so that `libpq`-compatible applications (such as `psql` itself) are able to connect to the CSQLP instance without further configuration.
+Non-`libpq`-compatible applications can still inspect the values of these environment variables and the PostgreSQL password file in order to connect to the CSQLP instance.

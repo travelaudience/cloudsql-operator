@@ -1,0 +1,181 @@
+= Installation Guide
+This document details how to install cloudsql-postgres-operator in a Kubernetes cluster.
+:icons: font
+:toc:
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+== Pre-requisites
+
+=== Kubernetes
+
+`cloudsql-postgres-operator` requires Kubernetes 1.12+.
+Running `cloudsql-postgres-operator` in older Kubernetes versions is not supported.
+
+A Google Cloud Platform project is required.
+This project must have the https://cloud.google.com/sql/docs/postgres/admin-api/[_Cloud SQL Admin API_] enabled.
+Additionally, and depending on the use case, the https://cloud.google.com/service-infrastructure/docs/service-networking/reference/rest/[_Service Networking API_] must also be enabled.
+
+In order to connect to https://cloud.google.com/sql/[Cloud SQL for PostgreSQL] (from now on abbreviated to _CSQLP_) instances via their private IPs, the abovementioned Kubernetes cluster must be a https://cloud.google.com/kubernetes-engine/[GKE] cluster satisfying https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine[additional conditions].
+
+[[prerequisites]]
+== Prerequisites
+
+`cloudsql-postgres-operator` manages CSQLP instances on a given https://cloud.google.com/[Google Cloud Platform] project.
+Hence, it must be provided with the following information when first starting:
+
+* The ID of the GCP project where to manage CSQLP instances;
+* The credentials (in JSON format) of two https://cloud.google.com/iam/docs/service-accounts[IAM service accounts]:
+** An IAM service account with the `roles/cloudsql.admin` https://cloud.google.com/iam/docs/understanding-roles[role] (from now on referred to as the "_admin_" IAM service account);
+** An IAM service account with the `roles/cloudsql.client` https://cloud.google.com/iam/docs/understanding-roles[role] (from now on referred to as the "_client_" IAM service account).
+
+TIP: For instructions on how to create and manage IAM service accounts, please refer to https://cloud.google.com/iam/docs/managing-service-accounts["Create and manage service accounts"].
+
+TIP: For instructions on how to create and manage IAM service account credentials, please refer to https://cloud.google.com/iam/docs/managing-service-account-keys["Create and manage service account keys"].
+
+TIP: For instructions on how to grant an IAM role to a service account, please refer to https://cloud.google.com/iam/docs/granting-roles-to-service-accounts["Granting IAM roles to service accounts].
+
+In the instructions that follow, it is assumed that the credentials for the "_admin_" and "_client_" IAM service accounts exist in two files named `admin-key.json` and `client-key.json`, respectively, in the current directory.
+
+[[installing]]
+== Installing `cloudsql-postgres-operator`
+
+One must start by creating the Kubernetes namespace to which `cloudsql-postgres-operator` will be deployed:
+
+[source,bash]
+----
+$ kubectl create namespace cloudsql-postgres-operator
+----
+
+Then, one must create a Kubernetes secret on said namespace containing the `admin-key.json` and `client-key.json` files:
+
+[source,bash]
+----
+$ kubectl --namespace cloudsql-postgres-operator \
+    create secret generic cloudsql-postgres-operator \
+        --from-file admin-key.json --from-file client-key.json
+----
+
+TIP: One may alternatively clone this repository, edit `docs/deployment/01-secret.yaml` as required, and then run `$ kubectl create -f docs/deployment/01-secret.yaml`.
+
+Afterwards, one must create the `cloudsql-postgres-operator` Kubernetes service account and setup the required permissions:
+
+[source,bash]
+----
+$ kubectl create -f https://raw.githubusercontent.com/travelaudience/cloudsql-postgres-operator/master/docs/deployment/02-service-account.yaml
+----
+
+Then, one must create a Kubernetes config map on the abovementioned namespace containing the configuration file for `cloudsql-postgres-operator`.
+At the very least, this file must contain the ID of the GCP project where `cloudsql-postgres-operator` will be managing CSQLP instances.
+
+[source,bash]
+----
+$ cat <<EOF | kubectl create -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: cloudsql-postgres-operator
+  name: cloudsql-postgres-operator
+  namespace: cloudsql-postgres-operator
+data:
+  config.toml: |
+    [gcp]
+    project_id = "__PROJECT_ID__"
+EOF
+----
+
+TIP: One may alternatively clone this repository, edit `docs/deployment/03-config-map.yaml` as required and then run `$ kubectl create -f docs/deployment/03-config-map.yaml`.
+
+IMPORTANT: The value of `gcp.project_id` **MUST** remain unchanged for as long as `cloudsql-postgres-operator` is running on the Kubernetes cluster.
+
+Finally, one must deploy `cloudsql-postgres-operator` itself by running:
+
+[source,bash]
+----
+$ kubectl create -f https://raw.githubusercontent.com/travelaudience/cloudsql-postgres-operator/master/docs/deployment/04-deployment.yaml
+----
+
+=== Tweaking the `cloudsql-postgres-operator` configuration
+
+It is possible to tweak several configuration parameters in the `cloudsql-postgres-operator` configuration file, the most important of which are detailed below.
+One should note that any instances of `cloudsql-postgres-operator` must be restarted for changes to any of these values to produce effect.
+
+==== Customizing the version of the Cloud SQL proxy image
+
+`cloudsql-postgres-operator` injects the https://cloud.google.com/sql/docs/postgres/sql-proxy[Cloud SQL proxy] as a sidecar into every pod requesting access to a CSQLP instance.
+By default, the Docker image used when injecting the Cloud SQL proxy is `gcr.io/cloudsql-docker/gce-proxy:1.14`, but this value can be customized by specifying the following entry in the `config.toml` key of the abovementioned config map:
+
+[source,toml]
+----
+[admission]
+cloud_sql_proxy_image = "<custom-image>"
+----
+
+==== Customizing the controller's "_resync period_"
+
+As described in the <<../design/00-overview.adoc,_Design Overview_>> design document,`cloudsql-postgres-operator` periodically queries the Cloud SQL Admin API in order to understand what the current state of each CSQLP instance is, and whether reconciliation is required.
+Each query to the Cloud SQL Admin API consumes https://cloud.google.com/docs/quota[quota] on the GCP project where `cloudsql-postgres-operator` is managing CSQLP instances.
+By default, this is done every three minutes.
+Even though this value is fairly conservative and should not cause quota exhaustion, it may in some scenarios be desirable to either increase or decrease it.
+This can be done by specifying the following entry in the `config.toml` key of the abovementioned config map:
+
+[source,toml]
+----
+[controllers]
+resync_period_seconds = <custom-resync-period>
+----
+
+==== Customizing the log level
+
+By default, `cloudsql-postgres-operator` logs at the `info` level.
+In order to customize the log level, one may specify the following entry in the `config.toml` key of the abovementioned config map:
+
+[source,toml]
+----
+[logging]
+level = "<custom_level>"
+----
+
+Valid values for `logging.level` include `trace`, `debug`, `info`, `warn`, `error`, `fatal` and `panic`.
+
+==== Further customization
+
+Further configuration options supported by `cloudsql-postgres-operator` are listed in the https://github.com/travelaudience/cloudsql-postgres-operator/blob/master/docs/examples/config.toml[`docs/examples/config.toml`] example file.
+However, any configuration properties not explicitly mentioned above are intended for development only.
+One should tweak them only when required, and do so at their own risk.
+
+== Uninstalling `cloudsql-postgres-operator`
+
+To completely uninstall `cloudsql-postgres-operator` and all associated Kubernetes resources, one may start by deleting the `cloudsql-postgres-operator` namespace:
+
+[source,bash]
+----
+$ kubectl delete namespace cloudsql-postgres-operator
+----
+
+Then, one should unregister the mutating admission webhook:
+
+[source,bash]
+----
+$ kubectl delete mutatingwebhookconfiguration cloudsql-postgres-operator
+----
+
+Finally, one should delete the custom resource definition created by `cloudsql-postgres-operator`:
+
+[source,bash]
+----
+$ kubectl delete crd postgresqlinstances.cloudsql.travelaudience.com
+----
+
+[WARNING]
+====
+Provided that these instructions are run by this order, any CSQLP instances that `cloudsql-postgres-operator` might have been managing will **NOT** be deleted from the associated Google Cloud Platform project.
+To actually delete said instances, one must use the Google Cloud Platform Console, the `gcloud` CLI tool or the Cloud SQL Admin API.
+====
