@@ -6,6 +6,6 @@ RUN go mod download
 COPY . .
 RUN make build
 
-FROM gcr.io/distroless/base
+FROM gcr.io/distroless/static
 COPY --from=builder /src/build/cloudsql-postgres-operator /cloudsql-postgres-operator
 CMD ["/cloudsql-postgres-operator", "-h"]

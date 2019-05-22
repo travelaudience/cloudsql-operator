@@ -36,6 +36,7 @@ pushd "${ROOT_DIR}" > /dev/null
 # Create the temporary directory if it does not exist.
 mkdir -p "${TMP_DIR}"
 # Copy manifest templates to the temporary directory.
+cp -r "${ROOT_DIR}/docs/deployment/02-service-account.yaml" "${TMP_DIR}/"
 cp -r "${ROOT_DIR}/hack/skaffold/operator/"* "${TMP_DIR}/"
 
 # Replace the "__TMP_DIR__" placeholder.

@@ -13,8 +13,10 @@ build: gen
 build: GOARCH ?= amd64
 build: GOOS ?= linux
 build:
-	@GOARCH=$(GOARCH) GOOS=$(GOOS) go build \
-		-ldflags="-s -w -X github.com/travelaudience/cloudsql-postgres-operator/pkg/version.Version=$(VERSION)" \
+	@CGO_ENABLED=0 GOARCH=$(GOARCH) GOOS=$(GOOS) go build \
+		-tags=netgo \
+		-installsuffix=netgo \
+		-ldflags="-d -s -w -X github.com/travelaudience/cloudsql-postgres-operator/pkg/version.Version=$(VERSION)" \
 		-o $(ROOT)/build/cloudsql-postgres-operator \
 		-v \
 		$(ROOT)/cmd/operator/main.go
@@ -22,7 +24,7 @@ build:
 # docker builds a Docker image containing the cloudsql-postgres-operator binary.
 .PHONY: docker
 docker: IMG ?= quay.io/travelaudience/cloudsql-postgres-operator
-docker: TAG ?= latest
+docker: TAG ?= $(VERSION)
 docker:
 	@docker build -t $(IMG):$(TAG) .
 
