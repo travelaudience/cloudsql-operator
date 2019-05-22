@@ -11,6 +11,8 @@ ifdef::env-github[]
 :warning-caption: :warning:
 endif::[]
 
+image:https://quay.io/repository/travelaudience/cloudsql-postgres-operator/status["Docker Repository on Quay", link="https://quay.io/repository/travelaudience/cloudsql-postgres-operator"]
+
 == Documentation
 
 === Usage
@@ -25,3 +27,84 @@ Existing usage documentation covers the following topics:
 === Design
 
 The design document for `cloudsql-postgres-operator` can be found <<./docs/design/00-overview.adoc#,here>>.
+
+== Development Guide
+
+=== Running
+
+To run `cloudsql-postgres-operator` in development mode, one needs the following:
+
+* A Kubernetes 1.12+ cluster;
+** At the moment only https://github.com/kubernetes/minikube[Minkube] and https://cloud.google.com/kubernetes-engine/[GKE] are tested and supported;
+* A Google Cloud Platform project and its ID;
+** The https://cloud.google.com/sql/docs/postgres/admin-api/[Cloud SQL Admin API] must be enabled on this project.
+* Two https://cloud.google.com/iam/docs/service-accounts[IAM service accounts] and their respective credential files;
+** These must have the `roles/cloudsql.admin` and `roles/cloudsql.client` roles respectively.
+** The credential files are assumed to be named `admin-key.json` and `client-key.json`.
+
+Additionally, the following software is required to be installed in one's workstation:
+
+* `kubectl`
+* `make`
+* `skaffold`
+
+After making sure these prerequisites are met, one may run the following command to start `cloudsql-postgres-operator` in development mode:
+
+[source,bash]
+----
+$ ADMIN_KEY_JSON_FILE=./admin-key.json \
+  CLIENT_KEY_JSON_FILE=./client-key.json \
+  MODE=dev \
+  PROFILE=<profile> \
+  PROJECT_ID=<project-id> \
+  make skaffold
+----
+
+In the command above...
+
+* ... `<profile>` must be replaced by one of `gke` or `minikube`;
+* ... `<project-id>` must be replaced by the ID of the target GCP project.
+
+Running the abovementioned command will build `cloudsql-postgres-operator`, deploy it to the target Kubernetes cluster and start streaming its logs:
+
+[source,text]
+----
+(...)
+[cloudsql-postgres-operator] time="2019-05-17T15:17:52Z" level=info msg="cloudsql-postgres-operator is starting" version=e1f6541-dev
+(...)
+[cloudsql-postgres-operator] time="2019-05-17T15:17:53Z" level=debug msg="started workers" controller=postgresqlinstance-controller
+----
+
+To stop `cloudsql-postgres-operator` and cleanup, one may hit `Ctrl+C`.
+
+=== Testing
+
+`cloudsql-postgres-operator` includes an end-to-end test suite designed to test several aspects of the lifecycle of a managed CSQLP instance.
+By default, the test suite tests access to CSQLP instances using public IP only, since private IP access requires a compatible GKE cluster.
+
+In order to run the basic version of test suite, one may run the following command:
+
+[source,bash]
+----
+$ PATH_TO_ADMIN_KEY=./admin-key.json \
+  PROJECT_ID=<project-id> \
+  make test.e2e
+----
+
+In case one is testing against a https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine[compatible] GKE cluster, one may run the full version of the test suite by running the following command instead:
+
+[source,bash]
+----
+$ NETWORK=<vpc-name> \
+  PATH_TO_ADMIN_KEY=./admin-key.json \
+  PROJECT_ID=<project-id> \
+  REGION=<region> \
+  TEST_PRIVATE_IP_ACCESS=true \
+  make test.e2e
+----
+
+[IMPORTANT]
+====
+As mentioned above, testing private IP access to CSQLP instances requires a compatible GKE cluster.
+In particular, this means that the GKE cluster must be https://cloud.google.com/kubernetes-engine/docs/how-to/alias-ips[VPC-native] to the `<vpc-name>` VPC and be located on the region indicated by `<region>`.
+====

@@ -8,8 +8,8 @@ build:
 deploy:
   kubectl:
     manifests:
-    - docs/deployment/02-service-account.yaml
-    - __TMP_DIR__/deployment.yaml
+    - __TMP_DIR__/02-service-account.yaml
+    - __TMP_DIR__/cloudsql-postgres-operator.yaml
 profiles:
 - name: gke
   build:
