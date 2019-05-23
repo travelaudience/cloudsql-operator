@@ -23,8 +23,6 @@ TMP_DIR="tmp/skaffold/operator"
 ADMIN_KEY_JSON_FILE="${ADMIN_KEY_JSON_FILE:-${ROOT_DIR}/admin-key.json}"
 # CLIENT_KEY_JSON_FILE is the path to the file containing the credentials of the "client" IAM service account.
 CLIENT_KEY_JSON_FILE="${CLIENT_KEY_JSON_FILE:-${ROOT_DIR}/client-key.json}"
-# MODE is the mode in which to run skaffold.
-MODE=${MODE:-dev}
 # PROFILE is the skaffold profile to use.
 PROFILE=${PROFILE:-local}
 # PROJECT_ID is the ID of the Google Cloud Platform project where cloudsql-postgres-operator should manage CSQLP instances.
@@ -50,20 +48,38 @@ sedi -e "s|__BASE64_ENCODED_ADMIN_KEY_JSON__|${BASE64_ENCODED_ADMIN_KEY_JSON}|g"
 BASE64_ENCODED_CLIENT_KEY_JSON="$(base64w < "${CLIENT_KEY_JSON_FILE}")"
 sedi -e "s|__BASE64_ENCODED_CLIENT_KEY_JSON__|${BASE64_ENCODED_CLIENT_KEY_JSON}|g" "${TMP_DIR}/"*.yaml
 
-# Check whether we need to build a binary.
-case "${MODE}" in
-    "dev"|"run")
-        make -C "${ROOT_DIR}" "build"
+# Build the cloudsql-postgres-operator binary.
+make -C "${ROOT_DIR}" "build"
+
+# Validate the profile and configure skaffold as required.
+case "${PROFILE}" in
+    "gke")
+        # Override IMAGE_PULL_POLICY.
+        IMAGE_PULL_POLICY="IfNotPresent"
         ;;
-    "delete")
-        # There's nothing to do here.
+    "kind")
+        # Let skaffold know that the current context is local.
+        # NOTE: This assumes that the current context does indeed point at a kind cluster.
+        skaffold config set --kube-context "$(kubectl config current-context)" local-cluster true > /dev/null 2>&1
+        # Kind requires local Docker images to be manually loaded using "kind load docker-image".
+        # Hence, we must build the image beforehand and manually load it before deploying.
+        kind load docker-image "$(skaffold build -f "${TMP_DIR}/skaffold.yaml" -n "${NAMESPACE}" -p "${PROFILE}" --quiet --output "{{(index .Builds 0).Tag}}")"
+        # Override IMAGE_PULL_POLICY.
+        IMAGE_PULL_POLICY="Never"
+        ;;
+    "minikube")
+        # Override IMAGE_PULL_POLICY.
+        IMAGE_PULL_POLICY="Never"
         ;;
     *)
-        echo "unsupported mode: \"${MODE}\"" && exit 1
+        echo "unsupported profile: \"${PROFILE}\"" && exit 1
 esac
+
+# Replace the "__IMAGE_PULL_POLICY__" placeholder.
+sedi -e "s|__IMAGE_PULL_POLICY__|${IMAGE_PULL_POLICY}|g" "${TMP_DIR}/"*.yaml
 
 # Make sure the target namespace exists.
 kubectl get namespace "${NAMESPACE}" > /dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 
-# Run skaffold.
-skaffold "${MODE}" -f "${TMP_DIR}/skaffold.yaml" -n "${NAMESPACE}" -p "${PROFILE}"
+# Run skaffold in development mode.
+skaffold run -f "${TMP_DIR}/skaffold.yaml" -n "${NAMESPACE}" -p "${PROFILE}" --tail

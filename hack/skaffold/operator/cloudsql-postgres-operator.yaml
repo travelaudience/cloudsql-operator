@@ -52,7 +52,7 @@ spec:
   containers:
   - name: cloudsql-postgres-operator
     image: "gcr.io/__PROJECT_ID__/cloudsql-postgres-operator"
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: "__IMAGE_PULL_POLICY__"
     args:
     - /cloudsql-postgres-operator
     - --config-file

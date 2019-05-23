@@ -35,7 +35,7 @@ The design document for `cloudsql-postgres-operator` can be found <<./docs/desig
 To run `cloudsql-postgres-operator` in development mode, one needs the following:
 
 * A Kubernetes 1.12+ cluster;
-** At the moment only https://github.com/kubernetes/minikube[Minkube] and https://cloud.google.com/kubernetes-engine/[GKE] are tested and supported;
+** At the moment only https://github.com/kubernetes/minikube[Minkube], https://github.com/kubernetes-sigs/kind[Kind] and https://cloud.google.com/kubernetes-engine/[GKE] are tested and supported;
 * A Google Cloud Platform project and its ID;
 ** The https://cloud.google.com/sql/docs/postgres/admin-api/[Cloud SQL Admin API] must be enabled on this project.
 * Two https://cloud.google.com/iam/docs/service-accounts[IAM service accounts] and their respective credential files;
@@ -54,7 +54,6 @@ After making sure these prerequisites are met, one may run the following command
 ----
 $ ADMIN_KEY_JSON_FILE=./admin-key.json \
   CLIENT_KEY_JSON_FILE=./client-key.json \
-  MODE=dev \
   PROFILE=<profile> \
   PROJECT_ID=<project-id> \
   make skaffold
@@ -62,8 +61,10 @@ $ ADMIN_KEY_JSON_FILE=./admin-key.json \
 
 In the command above...
 
-* ... `<profile>` must be replaced by one of `gke` or `minikube`;
+* ... `<profile>` must be replaced by one of `gke`, `kind` or `minikube`;
 * ... `<project-id>` must be replaced by the ID of the target GCP project.
+
+IMPORTANT: When running this command, one must make sure that `kubectl` is pointing at the intended GKE/Kind/Minikube cluster.
 
 Running the abovementioned command will build `cloudsql-postgres-operator`, deploy it to the target Kubernetes cluster and start streaming its logs:
 

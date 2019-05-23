@@ -37,13 +37,13 @@ gen:
 .PHONY: skaffold
 skaffold: ADMIN_KEY_JSON_FILE ?= $(ROOT)/admin-key.json
 skaffold: CLIENT_KEY_JSON_FILE ?= $(ROOT)/client-key.json
-skaffold: MODE ?= dev
+skaffold: KUBECONFIG ?= $(HOME)/.kube/config
 skaffold: PROFILE ?= minikube
 skaffold: PROJECT_ID ?= cloudsql-postgres-operator
 skaffold:
 	@ADMIN_KEY_JSON_FILE=$(ADMIN_KEY_JSON_FILE) \
 	CLIENT_KEY_JSON_FILE=$(CLIENT_KEY_JSON_FILE) \
-	MODE=$(MODE) \
+	KUBECONFIG=$(KUBECONFIG) \
 	PROFILE=$(PROFILE) \
 	PROJECT_ID=$(PROJECT_ID) \
 	$(ROOT)/hack/skaffold/skaffold.sh
